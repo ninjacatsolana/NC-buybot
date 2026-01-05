@@ -117,20 +117,22 @@ const side = ncDelta > 0 ? "BUY" : "SELL";
 const tokenQty = Math.abs(ncDelta);
 
 
-      const solSpent = pickSolSpent(e, trader);
+      // const solSpent = pickSolSpent(e, trader);
+const solSpent = null;
 
-      const txLink = `https://solscan.io/tx/${sig}`;
 
-      const tweet =
-        `🐾 NC BUY\n` +
-        (solSpent ? `Spent: ${solSpent.toFixed(4)} SOL\n` : ``) +
-        `Amount: ${best.amt.toLocaleString()} NC\n` +
-        Wallet: ${shortAddr(trader)}
+    const txLink = `https://solscan.io/tx/${sig}`;
 
-        `TX: ${txLink}`;
+const tweet =
+  `🐾 NC ${side}\n` +
+  (solSpent ? `SOL ${side === "BUY" ? "Spent" : "Received"}: ${Math.abs(solSpent).toFixed(4)}\n` : "") +
+  `Amount: ${tokenQty.toLocaleString()} NC\n` +
+  `Wallet: ${shortAddr(trader)}\n` +
+  `TX: ${txLink}`;
 
-      await twitter.v2.tweet(tweet);
-      console.log("Tweeted buy:", sig);
+await twitter_v2.tweet(tweet);
+console.log(`Tweeted ${side}:`, sig);
+ 
     }
 
     res.status(200).send("ok");
@@ -146,6 +148,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
