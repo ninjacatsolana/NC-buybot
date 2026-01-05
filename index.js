@@ -109,19 +109,14 @@ for (const t of ncTransfers) {
 }
 
 const ncDelta = ncIn - ncOut;
-
-// no net NC movement, ignore
 if (ncDelta === 0) continue;
 
 const side = ncDelta > 0 ? "BUY" : "SELL";
 const tokenQty = Math.abs(ncDelta);
 
-
-      // const solSpent = pickSolSpent(e, trader);
 const solSpent = null;
 
-
-    const txLink = `https://solscan.io/tx/${sig}`;
+const txLink = `https://solscan.io/tx/${sig}`;
 
 const tweet =
   `🐾 NC ${side}\n` +
@@ -132,6 +127,7 @@ const tweet =
 
 await twitter_v2.tweet(tweet);
 console.log(`Tweeted ${side}:`, sig);
+;
  
     }
 
@@ -148,6 +144,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
