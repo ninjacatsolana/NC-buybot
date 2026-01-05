@@ -69,14 +69,16 @@ app.post("/helius", async (req, res) => {
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
     console.log("Helius webhook hit:", events.length);
+console.log("Event type:", e.type);
 
     for (const e of events) {
       const sig = e?.signature;
       if (!sig || seen.has(sig)) continue;
       seen.add(sig);
 
-      // Ignore NFT events
-      if (String(e?.type || "").includes("NFT")) continue;
+      // Ignore pure NFT sales only
+if (e.type === "NFT_SALE") continue;
+
 
       // Check token transfers
       const transfers = Array.isArray(e?.tokenTransfers)
@@ -122,5 +124,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
