@@ -80,7 +80,7 @@ for (const e of events) {
   // Ignore NFT sales
   if (e.type === "NFT_SALE") continue;
 
-  // rest of your logic here
+  
 }
 
 
@@ -130,6 +130,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
