@@ -81,7 +81,7 @@ for (const e of events) {
   if (e.type === "NFT_SALE") continue;
 
   
-}
+
 
 
 
@@ -130,6 +130,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
