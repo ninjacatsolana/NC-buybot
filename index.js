@@ -91,26 +91,42 @@ for (const e of events) {
         ? e.tokenTransfers
         : [];
 
-      const ncTransfers = transfers.filter(t => t?.mint === NC_MINT);
+      // === FIX BUY vs SELL LOGIC ===
+const trader = e.feePayer;
+if (!trader) continue;
 
-      let best = null;
-      for (const t of ncTransfers) {
-        const amt = Number(t?.tokenAmount || 0);
-        if (amt > 0 && (!best || amt > best.amt)) {
-          best = { amt, buyer: t?.toUserAccount };
-        }
-      }
+const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
 
-      if (!best) continue;
+let ncIn = 0;
+let ncOut = 0;
 
-      const solSpent = pickSolSpent(e);
+for (const t of ncTransfers) {
+  const amt = Number(t.tokenAmount || 0);
+  if (!amt) continue;
+
+  if (t.toUserAccount === trader) ncIn += amt;
+  if (t.fromUserAccount === trader) ncOut += amt;
+}
+
+const ncDelta = ncIn - ncOut;
+
+// no net NC movement, ignore
+if (ncDelta === 0) continue;
+
+const side = ncDelta > 0 ? "BUY" : "SELL";
+const tokenQty = Math.abs(ncDelta);
+
+
+      const solSpent = pickSolSpent(e, trader);
+
       const txLink = `https://solscan.io/tx/${sig}`;
 
       const tweet =
         `🐾 NC BUY\n` +
         (solSpent ? `Spent: ${solSpent.toFixed(4)} SOL\n` : ``) +
         `Amount: ${best.amt.toLocaleString()} NC\n` +
-        `Buyer: ${shortAddr(best.buyer)}\n` +
+        Wallet: ${shortAddr(trader)}
+
         `TX: ${txLink}`;
 
       await twitter.v2.tweet(tweet);
@@ -130,6 +146,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
