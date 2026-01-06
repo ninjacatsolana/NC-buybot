@@ -109,7 +109,23 @@ for (const t of ncTransfers) {
 }
 
 const ncDelta = ncIn - ncOut;
+
+// 🔎 DEBUG – ADD THIS BLOCK
+console.log("sig:", sig);
+console.log("trader:", trader);
+console.log("transfers total:", transfers?.length || 0);
+console.log("ncTransfers length:", ncTransfers.length);
+
+if (ncTransfers[0]) {
+  console.log("sample nc transfer keys:", Object.keys(ncTransfers[0]));
+  console.log("sample nc transfer:", ncTransfers[0]);
+}
+
+console.log("ncIn:", ncIn, "ncOut:", ncOut, "ncDelta:", ncDelta);
+
+// 🚫 SKIP IF NO NET CHANGE
 if (ncDelta === 0) continue;
+
 
 const side = ncDelta > 0 ? "BUY" : "SELL";
 const tokenQty = Math.abs(ncDelta);
@@ -144,6 +160,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
