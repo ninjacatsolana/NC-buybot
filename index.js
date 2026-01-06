@@ -22,7 +22,7 @@ const seen = new Set();
 const fs = require("fs");
 const path = require("path");
 
-async function tweetWithImage(tweet, "./assets/buybot.png") {
+async function tweetWithImage(text, imageRelativePath = "./assets/buybot.png") {
   const imagePath = path.join(__dirname, imageRelativePath);
 
   const mediaId = await twitter.v1.uploadMedia(
@@ -35,6 +35,7 @@ async function tweetWithImage(tweet, "./assets/buybot.png") {
     media: { media_ids: [mediaId] },
   });
 }
+
 
 function shortAddr(a) {
   if (!a || typeof a !== "string") return "unknown";
@@ -72,7 +73,8 @@ app.get("/health", (req, res) => {
 app.get("/test-tweet", async (req, res) => {
   try {
     const msg = `🐾 NC Buybot test ${new Date().toISOString()}`;
-    await twitter.v2.tweet(msg);
+    await tweetWithImage(msg, "./assets/buybot.png");
+
     res.status(200).send("Tweet sent ✅");
   } catch (err) {
     console.log("Test tweet error:", err);
@@ -150,6 +152,7 @@ const solSpent = null;
 
 const txLink = `https://solscan.io/tx/${sig}`;
 
+
 const tweet =
   `🐾 NC ${side}\n` +
   `Amount: ${tokenQty.toLocaleString()} NC\n` +
@@ -159,7 +162,10 @@ const tweet =
 console.log("ABOUT TO TWEET side:", side, "sig:", sig);
 console.log("tweet text:\n", tweet);
 
+
 const resp = await tweetWithImage(tweet, "./assets/buybot.png");
+console.log("TWEET SENT OK:", resp?.data?.id);
+
 
 
 console.log("TWEET SENT OK:", resp?.data?.id);
@@ -188,6 +194,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
