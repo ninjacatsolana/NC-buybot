@@ -141,6 +141,7 @@ const tweet =
   `Wallet: ${shortAddr(trader)}\n` +
   `TX: ${txLink}`;
 
+
 await twitter_v2.tweet(tweet);
 console.log(`Tweeted ${side}:`, sig);
 ;
@@ -160,6 +161,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
