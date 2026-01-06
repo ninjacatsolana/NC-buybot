@@ -19,6 +19,22 @@ const NC_POOL = "F9MJEtLDppZA9d6Su2HomT1Bay3DjZaKSP8SamcrYDP4";
 
 // ---------- Helpers ----------
 const seen = new Set();
+const fs = require("fs");
+const path = require("path");
+
+async function tweetWithImage(tweet, "./assets/buybot.png") {
+  const imagePath = path.join(__dirname, imageRelativePath);
+
+  const mediaId = await twitter.v1.uploadMedia(
+    fs.readFileSync(imagePath),
+    { mimeType: "image/png" }
+  );
+
+  return twitter.v2.tweet({
+    text,
+    media: { media_ids: [mediaId] },
+  });
+}
 
 function shortAddr(a) {
   if (!a || typeof a !== "string") return "unknown";
@@ -143,7 +159,8 @@ const tweet =
 console.log("ABOUT TO TWEET side:", side, "sig:", sig);
 console.log("tweet text:\n", tweet);
 
-const resp = await twitter.v2.tweet(tweet);
+const resp = await tweetWithImage(tweet, "./assets/buybot.png");
+
 
 console.log("TWEET SENT OK:", resp?.data?.id);
 
@@ -171,6 +188,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
