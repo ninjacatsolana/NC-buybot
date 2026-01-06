@@ -134,27 +134,36 @@ const solSpent = null;
 
 const txLink = `https://solscan.io/tx/${sig}`;
 
+
+
 const tweet =
   `🐾 NC ${side}\n` +
-  (solSpent ? `SOL ${side === "BUY" ? "Spent" : "Received"}: ${Math.abs(solSpent).toFixed(4)}\n` : "") +
   `Amount: ${tokenQty.toLocaleString()} NC\n` +
   `Wallet: ${shortAddr(trader)}\n` +
   `TX: ${txLink}`;
 
 
-await twitterClient.v2.tweet(tweet);
+console.log("ABOUT TO TWEET side:", side, "sig:", sig);
+console.log("tweet text:\n", tweet);
 
+const resp = await twitterClient.v2.tweet(tweet);
+console.log("TWEET SENT OK:", resp?.data?.id);
 
 console.log(`Tweeted ${side}:`, sig);
-;
+
+
+
  
     }
 
     res.status(200).send("ok");
-  } catch (err) {
-    console.log("Webhook error:", err);
-    res.status(500).send("error");
-  }
+ } catch (err) {
+  console.log("Webhook error message:", err?.message);
+  console.log("Webhook error data:", err?.data);
+  console.log("Webhook error full:", err);
+  res.status(500).send("error");
+}
+
 });
 
 // ---------- Start ----------
@@ -163,6 +172,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
