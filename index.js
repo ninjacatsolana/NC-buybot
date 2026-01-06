@@ -134,14 +134,11 @@ const solSpent = null;
 
 const txLink = `https://solscan.io/tx/${sig}`;
 
-
-
 const tweet =
   `🐾 NC ${side}\n` +
   `Amount: ${tokenQty.toLocaleString()} NC\n` +
   `Wallet: ${shortAddr(trader)}\n` +
   `TX: ${txLink}`;
-
 
 console.log("ABOUT TO TWEET side:", side, "sig:", sig);
 console.log("tweet text:\n", tweet);
@@ -150,6 +147,7 @@ const resp = await twitterClient.v2.tweet(tweet);
 console.log("TWEET SENT OK:", resp?.data?.id);
 
 console.log(`Tweeted ${side}:`, sig);
+
 
 
 
@@ -172,6 +170,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
