@@ -22,8 +22,8 @@ const seen = new Set();
 const fs = require("fs");
 const path = require("path");
 
-async function tweetWithImage(text, imageRelativePath = "./assets/buybot.png") {
-  const imagePath = path.join(__dirname, imageRelativePath);
+async function tweetWithImage(text) {
+  const imagePath = path.join(__dirname, "assets", "buybot.png");
 
   console.log(
     "IMAGE CHECK:",
@@ -36,6 +36,14 @@ async function tweetWithImage(text, imageRelativePath = "./assets/buybot.png") {
     fs.readFileSync(imagePath),
     { mimeType: "image/png" }
   );
+
+  console.log("MEDIA UPLOADED:", mediaId);
+
+  return twitter.v2.tweet({
+    text,
+    media: { media_ids: [mediaId] },
+  });
+}
 
   console.log("MEDIA UPLOADED:", mediaId);
 
@@ -212,6 +220,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
