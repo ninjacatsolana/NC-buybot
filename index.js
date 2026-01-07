@@ -25,16 +25,26 @@ const path = require("path");
 async function tweetWithImage(text, imageRelativePath = "./assets/buybot.png") {
   const imagePath = path.join(__dirname, imageRelativePath);
 
+  console.log(
+    "IMAGE CHECK:",
+    imagePath,
+    "exists:",
+    fs.existsSync(imagePath)
+  );
+
   const mediaId = await twitter.v1.uploadMedia(
     fs.readFileSync(imagePath),
     { mimeType: "image/png" }
   );
+
+  console.log("MEDIA UPLOADED:", mediaId);
 
   return twitter.v2.tweet({
     text,
     media: { media_ids: [mediaId] },
   });
 }
+
 
 
   
@@ -76,14 +86,19 @@ app.get("/health", (req, res) => {
 app.get("/test-tweet", async (req, res) => {
   try {
     const msg = `🐾 NC Buybot test ${new Date().toISOString()}`;
-    await tweetWithImage(msg, "./assets/buybot.png");
 
+    const resp = await tweetWithImage(msg, "./assets/buybot.png");
+
+    console.log("TEST TWEET OK:", resp?.data);
     res.status(200).send("Tweet sent ✅");
   } catch (err) {
-    console.log("Test tweet error:", err);
+    console.log("TEST TWEET ERROR MESSAGE:", err?.message);
+    console.log("TEST TWEET ERROR DATA:", err?.data);
+    console.log("TEST TWEET ERROR FULL:", err);
     res.status(500).send("Tweet failed ❌");
   }
 });
+
 
 // ---------- Helius webhook ----------
 app.post("/helius", async (req, res) => {
@@ -197,6 +212,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
