@@ -37,11 +37,7 @@ async function tweetWithImage(text, imageRelativePath = "./assets/buybot.png") {
 }
 
 
-  return twitter.v2.tweet({
-    text,
-    media: { media_ids: [mediaId] },
-  });
-}
+  
 
 
 function shortAddr(a) {
@@ -201,6 +197,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
