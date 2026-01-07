@@ -22,7 +22,7 @@ const seen = new Set();
 const fs = require("fs");
 const path = require("path");
 
-async function tweetWithImage(text, imageRelativePath = "./Assets/buybot.png") {
+async function tweetWithImage(text, imageRelativePath = "./assets/buybot.png") {
   const imagePath = path.join(__dirname, imageRelativePath);
 
   console.log(
@@ -87,7 +87,7 @@ app.get("/test-tweet", async (req, res) => {
   try {
     const msg = `🐾 NC Buybot test ${new Date().toISOString()}`;
 
-    const resp = await tweetWithImage(msg, "./Assets/buybot.png");
+    const resp = await tweetWithImage(msg, "./assets/buybot.png");
 
     console.log("TEST TWEET OK:", resp?.data);
     res.status(200).send("Tweet sent ✅");
@@ -212,6 +212,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
