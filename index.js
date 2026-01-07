@@ -25,12 +25,7 @@ const path = require("path");
 async function tweetWithImage(text) {
   const imagePath = path.join(__dirname, "assets", "buybot.png");
 
-  console.log(
-    "IMAGE CHECK:",
-    imagePath,
-    "exists:",
-    fs.existsSync(imagePath)
-  );
+  console.log("IMAGE CHECK:", imagePath, "exists:", fs.existsSync(imagePath));
 
   const mediaId = await twitter.v1.uploadMedia(
     fs.readFileSync(imagePath),
@@ -45,13 +40,6 @@ async function tweetWithImage(text) {
   });
 }
 
-  console.log("MEDIA UPLOADED:", mediaId);
-
-  return twitter.v2.tweet({
-    text,
-    media: { media_ids: [mediaId] },
-  });
-}
 
 
 
@@ -136,8 +124,16 @@ for (const e of events) {
         : [];
 
       // === FIX BUY vs SELL LOGIC ===
-const trader = e.feePayer;
-if (!trader) continue;
+const trader =
+  e.feePayer ||
+  e.tokenTransfers?.[0]?.toUserAccount ||
+  e.tokenTransfers?.[0]?.fromUserAccount;
+
+if (!trader) {
+  console.log("No trader found, skipping. sig:", sig);
+  continue;
+}
+
 
 const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
 
@@ -220,6 +216,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
