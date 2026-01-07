@@ -168,7 +168,15 @@ if (ncDelta === 0) continue;
 
 
 const side = ncDelta > 0 ? "BUY" : "SELL";
+
+// 🚫 SKIP SELLS
+if (side !== "BUY") {
+  console.log("Skipping SELL tx:", sig);
+  continue;
+}
+
 const tokenQty = Math.abs(ncDelta);
+
 
 const solSpent = null;
 
@@ -216,6 +224,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
