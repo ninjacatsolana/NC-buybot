@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ninja Cat Buy Alert</title>
+  <style>
+    body { margin:0; background:transparent; overflow:hidden; }
+    #wrap { position:relative; width:100vw; height:100vh; }
+    #alert {
+      position:absolute;
+      left:50%;
+      top:15%;
+      transform:translate(-50%, -50%);
+      display:none;
+      text-align:center;
+      font-family: Arial, sans-serif;
+      font-size: 48px;
+      color: white;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+    }
+    #alert img { width: 300px; height:auto; display:block; margin: 0 auto 12px; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="alert">
+      <img src="/public/alert.png" />
+      <div id="text">Ninja Cat Buy</div>
+      <audio id="sound" src="/public/alert.mp3" preload="auto"></audio>
+    </div>
+  </div>
+
+  <script>
+    const alertEl = document.getElementById("alert");
+    const textEl = document.getElementById("text");
+    const soundEl = document.getElementById("sound");
+
+    // Temporary test: click anywhere to trigger
+    document.body.addEventListener("click", () => {
+      triggerAlert("Test Buy Detected");
+    });
+
+    function triggerAlert(message) {
+      textEl.textContent = message;
+      alertEl.style.display = "block";
+      soundEl.currentTime = 0;
+      soundEl.play().catch(() => {});
+      setTimeout(() => { alertEl.style.display = "none"; }, 5000);
+    }
+  </script>
+</body>
+</html>
