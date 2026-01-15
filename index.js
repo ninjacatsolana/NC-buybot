@@ -233,6 +233,9 @@ app.get("/debug-overlay", (req, res) => {
     dirname: __dirname,
   });
 });
+app.get("/version", (req, res) => {
+  res.send("version: overlay-v1");
+});
 
 
 
@@ -242,6 +245,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
