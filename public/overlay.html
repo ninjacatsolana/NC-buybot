@@ -1,1 +1,54 @@
-https://nc-buybot-production-2946.up.railway.app/overlay
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ninja Cat Buy Alert</title>
+  <style>
+    body { margin:0; background:transparent; overflow:hidden; font-family: Arial, sans-serif; }
+    #btn { position:absolute; left:20px; top:20px; padding:16px 22px; font-size:22px; }
+    #alert {
+      position:absolute;
+      left:50%;
+      top:35%;
+      transform:translate(-50%, -50%);
+      display:none;
+      text-align:center;
+      color:white;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+    }
+    video { width:420px; height:auto; border-radius:16px; }
+    #text { margin-top:10px; font-size:44px; }
+  </style>
+</head>
+<body>
+  <button id="btn">TEST ALERT</button>
+
+  <div id="alert">
+    <video id="vid" src="/public/Alert.mp4" playsinline></video>
+    <div id="text">Ninja Cat Buy!</div>
+    <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
+  </div>
+
+  <script>
+    const btn = document.getElementById("btn");
+    const alertEl = document.getElementById("alert");
+    const vid = document.getElementById("vid");
+    const sound = document.getElementById("sound");
+
+    btn.addEventListener("click", () => {
+      alertEl.style.display = "block";
+
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+
+      vid.currentTime = 0;
+      vid.play().catch(() => {});
+
+      setTimeout(() => {
+        vid.pause();
+        alertEl.style.display = "none";
+      }, 5000);
+    });
+  </script>
+</body>
+</html>
