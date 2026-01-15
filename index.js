@@ -85,7 +85,12 @@ app.get("/test-tweet", async (req, res) => {
 
     const resp = await tweetWithImage(msg, "./assets/buybot.png");
 
-    console.log("TEST TWEET OK:", resp?.data);
+    console.log("TWEET SENT OK:", resp.data?.id);
+
+require("https")
+  .get("https://nc-buybot-production-2946.up.railway.app/fire-alert?msg=Ninja+Cat+Buy")
+  .on("error", () => {});
+
     res.status(200).send("Tweet sent ✅");
   } catch (err) {
     console.log("TEST TWEET ERROR MESSAGE:", err?.message);
@@ -252,6 +257,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
