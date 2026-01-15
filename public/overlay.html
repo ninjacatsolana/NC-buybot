@@ -26,16 +26,37 @@
  
 
   <div id="alert">
-    <video id="vid" src="/public/Alert.mp4" muted playsinline preload="auto"></video>
-    <div id="text">Ninja Cat Buy!</div>
-    <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
-  </div>
+  <video id="vid" src="/public/Alert.mp4" muted playsinline preload="auto"autoplay></video>
+  <div id="text">Ninja Cat Buy!</div>
+  <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
+</div>
+
 
   <script>
   const alertEl = document.getElementById("alert");
   const vid = document.getElementById("vid");
   const sound = document.getElementById("sound");
   const textEl = document.getElementById("text");
+let audioUnlocked = false;
+
+function unlockOnce() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+
+  // Try to unlock audio playback with a user gesture
+  sound.volume = 0;
+  sound.play().then(() => {
+    sound.pause();
+    sound.currentTime = 0;
+    sound.volume = 1;
+  }).catch(() => {
+    sound.volume = 1;
+  });
+
+  document.removeEventListener("click", unlockOnce);
+}
+
+document.addEventListener("click", unlockOnce);
 
   let lastTs = 0;
 
@@ -47,9 +68,11 @@
     sound.currentTime = 0;
     sound.play().catch(() => {});
 
-    // video
-    vid.currentTime = 0;
-    vid.play().catch(() => {});
+// video
+vid.currentTime = 0;
+vid.play().catch(() => {});
+
+
 
     setTimeout(() => {
       vid.pause();
