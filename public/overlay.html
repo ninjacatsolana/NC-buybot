@@ -24,7 +24,7 @@
   <button id="btn">TEST ALERT</button>
 
   <div id="alert">
-    <video id="vid" src="/public/Alert.mp4" playsinline></video>
+    <video id="vid" src="/public/Alert.mp4" muted playsinline preload="auto"></video>
     <div id="text">Ninja Cat Buy!</div>
     <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
   </div>
@@ -37,13 +37,10 @@
 
     btn.addEventListener("click", () => {
       alertEl.style.display = "block";
-
       sound.currentTime = 0;
       sound.play().catch(() => {});
-
       vid.currentTime = 0;
       vid.play().catch(() => {});
-
       setTimeout(() => {
         vid.pause();
         alertEl.style.display = "none";
