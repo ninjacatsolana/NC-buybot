@@ -227,24 +227,15 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.get("/overlay", (req, res) => {
   res.redirect("/public/overlay.html");
 });
-app.get("/debug-overlay", (req, res) => {
-  res.json({
-    cwd: process.cwd(),
-    dirname: __dirname,
-  });
-});
-app.get("/version", (req, res) => {
-  res.send("version: overlay-v1");
-});
 
-
-
-// ---------- Start ----------
+// --------- Start ---------
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
 
 
 
