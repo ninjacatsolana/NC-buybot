@@ -78,7 +78,8 @@
           lastTs = data.ts;
 
           // reload image each time in case of caching
-          imgEl.src = "/public/alert.png?ts=" + data.ts;
+         <img id="img" src="/public/alert.png" style="width:420px;border-radius:16px;display:block;border:4px solid red;background:#222;">
+
 
           triggerAlert(data.msg);
         }
