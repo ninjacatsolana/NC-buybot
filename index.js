@@ -228,12 +228,31 @@ app.get("/overlay", (req, res) => {
   res.redirect("/public/overlay.html");
 });
 
+// ---- Ninja Cat Buy Alert state ----
+let lastAlert = null;
+
+// Trigger an alert (your buybot will call this)
+app.get("/fire-alert", (req, res) => {
+  lastAlert = {
+    msg: req.query.msg || "Ninja Cat Buy!",
+    ts: Date.now(),
+  };
+  res.status(200).send("ok");
+});
+
+// Overlay polls this endpoint
+app.get("/poll-alert", (req, res) => {
+  res.json(lastAlert);
+});
+
+
 // --------- Start ---------
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
