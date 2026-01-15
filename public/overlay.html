@@ -25,14 +25,16 @@
 
 <body>
   <div id="alert">
-    <img id="img" src="/public/alert.png" />
+    <img id="img" src="/public/alert.png" style="width:420px;border-radius:16px;display:block;">
+
     <div id="text">Ninja Cat Buy!</div>
     <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
   </div>
 
   <script>
     const alertEl = document.getElementById("alert");
-    const imgEl = document.getElementById("img");
+   const imgEl = document.getElementById("img");
+
     const sound = document.getElementById("sound");
     const textEl = document.getElementById("text");
 
