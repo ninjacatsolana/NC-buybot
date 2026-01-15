@@ -26,7 +26,8 @@
  
 
   <div id="alert">
-  <video id="vid" src="/public/Alert.mp4" muted playsinline preload="auto"autoplay></video>
+<img id="vid" src="/public/Alert.png" style="width:420px;border-radius:16px;display:block;">
+
   <div id="text">Ninja Cat Buy!</div>
   <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
 </div>
@@ -60,17 +61,18 @@ document.addEventListener("click", unlockOnce);
 
   let lastTs = 0;
 
-  function triggerAlert(message) {
-    textEl.textContent = message || "Ninja Cat Buy!";
-    alertEl.style.display = "block";
+ function triggerAlert(message) {
+  textEl.textContent = message || "Ninja Cat Buy!";
+  alertEl.style.display = "block";
 
-    // audio
-    sound.currentTime = 0;
-    sound.play().catch(() => {});
+  sound.currentTime = 0;
+  sound.play().catch(() => {});
 
-// video
-vid.currentTime = 0;
-vid.play().catch(() => {});
+  setTimeout(() => {
+    alertEl.style.display = "none";
+  }, 5000);
+}
+
 
 
 
