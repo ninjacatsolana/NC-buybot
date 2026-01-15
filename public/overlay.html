@@ -23,7 +23,7 @@
   </style>
 </head>
 <body>
-  <button id="btn">TEST ALERT</button>
+ 
 
   <div id="alert">
     <video id="vid" src="/public/Alert.mp4" muted playsinline preload="auto"></video>
@@ -32,22 +32,45 @@
   </div>
 
   <script>
-    const btn = document.getElementById("btn");
-    const alertEl = document.getElementById("alert");
-    const vid = document.getElementById("vid");
-    const sound = document.getElementById("sound");
+  const alertEl = document.getElementById("alert");
+  const vid = document.getElementById("vid");
+  const sound = document.getElementById("sound");
+  const textEl = document.getElementById("text");
 
-    btn.addEventListener("click", () => {
-      alertEl.style.display = "block";
-      sound.currentTime = 0;
-      sound.play().catch(() => {});
-      vid.currentTime = 0;
-      vid.play().catch(() => {});
-      setTimeout(() => {
-        vid.pause();
-        alertEl.style.display = "none";
-      }, 5000);
-    });
-  </script>
-</body>
-</html>
+  let lastTs = 0;
+
+  function triggerAlert(message) {
+    textEl.textContent = message || "Ninja Cat Buy!";
+    alertEl.style.display = "block";
+
+    // audio
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+
+    // video
+    vid.currentTime = 0;
+    vid.play().catch(() => {});
+
+    setTimeout(() => {
+      vid.pause();
+      alertEl.style.display = "none";
+    }, 5000);
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch("/poll-alert", { cache: "no-store" });
+      const data = await r.json();
+      if (data && data.ts && data.ts > lastTs) {
+        lastTs = data.ts;
+        triggerAlert(data.msg);
+      }
+    } catch (e) {
+      // ignore temporary errors
+    }
+  }
+
+  // poll every 1 second
+  setInterval(poll, 1000);
+</script>
+
