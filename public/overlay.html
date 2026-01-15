@@ -1,5 +1,4 @@
-<!-- overlay v1 -->
-
+<!-- overlay v2 -->
 <!doctype html>
 <html>
 <head>
@@ -7,7 +6,7 @@
   <title>Ninja Cat Buy Alert</title>
   <style>
     body { margin:0; background:transparent; overflow:hidden; font-family: Arial, sans-serif; }
-    #btn { position:absolute; left:20px; top:20px; padding:16px 22px; font-size:22px; }
+
     #alert {
       position:absolute;
       left:50%;
@@ -18,86 +17,79 @@
       color:white;
       text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
     }
-    video { width:420px; height:auto; border-radius:16px; }
+
+    #img { width:420px; height:auto; border-radius:16px; display:block; }
     #text { margin-top:10px; font-size:44px; }
   </style>
 </head>
+
 <body>
- 
-
   <div id="alert">
-<img id="vid" src="/public/alert.png" style="width:420px;border-radius:16px;display:block;">
-
-
-
-  <div id="text">Ninja Cat Buy!</div>
-  <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
-</div>
-
+    <img id="img" src="/public/alert.png" />
+    <div id="text">Ninja Cat Buy!</div>
+    <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
+  </div>
 
   <script>
-  const alertEl = document.getElementById("alert");
-  const vid = document.getElementById("vid");
-  const sound = document.getElementById("sound");
-  const textEl = document.getElementById("text");
-let audioUnlocked = false;
+    const alertEl = document.getElementById("alert");
+    const imgEl = document.getElementById("img");
+    const sound = document.getElementById("sound");
+    const textEl = document.getElementById("text");
 
-function unlockOnce() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
+    let lastTs = 0;
+    let audioUnlocked = false;
 
-  // Try to unlock audio playback with a user gesture
-  sound.volume = 0;
-  sound.play().then(() => {
-    sound.pause();
-    sound.currentTime = 0;
-    sound.volume = 1;
-  }).catch(() => {
-    sound.volume = 1;
-  });
+    function unlockOnce() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
 
-  document.removeEventListener("click", unlockOnce);
-}
+      sound.volume = 0;
+      sound.play().then(() => {
+        sound.pause();
+        sound.currentTime = 0;
+        sound.volume = 1;
+      }).catch(() => {
+        sound.volume = 1;
+      });
 
-document.addEventListener("click", unlockOnce);
-
-  let lastTs = 0;
-
- function triggerAlert(message) {
-  textEl.textContent = message || "Ninja Cat Buy!";
-  alertEl.style.display = "block";
-
-  sound.currentTime = 0;
-  sound.play().catch(() => {});
-
-  setTimeout(() => {
-    alertEl.style.display = "none";
-  }, 5000);
-}
-
-
-
-
-    setTimeout(() => {
-      vid.pause();
-      alertEl.style.display = "none";
-    }, 5000);
-  }
-
-  async function poll() {
-    try {
-      const r = await fetch("/poll-alert", { cache: "no-store" });
-      const data = await r.json();
-      if (data && data.ts && data.ts > lastTs) {
-        lastTs = data.ts;
-        triggerAlert(data.msg);
-      }
-    } catch (e) {
-      // ignore temporary errors
+      document.removeEventListener("click", unlockOnce);
     }
-  }
 
-  // poll every 1 second
-  setInterval(poll, 1000);
-</script>
+    document.addEventListener("click", unlockOnce);
+
+    function triggerAlert(message) {
+      textEl.textContent = message || "Ninja Cat Buy!";
+      alertEl.style.display = "block";
+
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+
+      setTimeout(() => {
+        alertEl.style.display = "none";
+      }, 5000);
+    }
+
+    async function poll() {
+      try {
+        const r = await fetch("/poll-alert", { cache: "no-store" });
+        const data = await r.json();
+
+        if (data && data.ts && data.ts > lastTs) {
+          lastTs = data.ts;
+
+          // reload image each time in case of caching
+          imgEl.src = "/public/alert.png?ts=" + data.ts;
+
+          triggerAlert(data.msg);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    setInterval(poll, 1000);
+  </script>
+</body>
+</html>
+
 
