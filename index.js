@@ -218,6 +218,15 @@ console.log(`Tweeted ${side}:`, sig);
 }
 
 });
+const path = require("path");
+
+// serve files in /public
+app.use("/public", express.static(path.join(__dirname, "public")));
+
+// serve the overlay page
+app.get("/overlay", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "overlay.html"));
+});
 
 // ---------- Start ----------
 const PORT = process.env.PORT || 3000;
@@ -225,6 +234,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
