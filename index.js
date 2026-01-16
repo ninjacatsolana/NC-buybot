@@ -141,7 +141,16 @@ if (!trader) {
 
 
 const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
+// If we saw any NC token movement, treat it as a "buy event" for alerts/posts
+let movedNc = 0;
+for (const t of ncTransfers) {
+  const amt = Number(t.tokenAmount || 0);
+  if (amt > 0) movedNc += amt;
+}
 
+console.log("[NC MOVED]", { movedNc, ncTransfersLen: ncTransfers.length });
+
+if (movedNc <= 0) continue; // nothing meaningful, skip
 let ncIn = 0;
 let ncOut = 0;
 
@@ -168,8 +177,7 @@ if (ncTransfers[0]) {
 
 console.log("ncIn:", ncIn, "ncOut:", ncOut, "ncDelta:", ncDelta);
 
-// 🚫 SKIP IF NO NET CHANGE
-if (ncDelta === 0) continue;
+
 
 
 const side = ncDelta > 0 ? "BUY" : "SELL";
@@ -262,6 +270,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
