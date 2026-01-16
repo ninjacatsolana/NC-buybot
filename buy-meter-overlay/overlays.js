@@ -1,5 +1,5 @@
-// buy-meter-overlay/overlay.js
-// Debug mode: add ?debug=1 to the URL
+// overlay.js
+// Auto demo animation unless you explicitly set ?mode=live
 // Goal: $500 = 100%
 // Effects: smoke at 20 and 50, sparks at 75, ignite at 100
 
@@ -10,7 +10,11 @@ const usdText = document.getElementById("usdText");
 const pctText = document.getElementById("pctText");
 const hintText = document.getElementById("hintText");
 
-let currentUsd = 0;
+// If this text changes, you KNOW overlay.js is running
+hintText.textContent = "Overlay JS loaded";
+
+const params = new URLSearchParams(location.search);
+const mode = params.get("mode") || "demo"; // demo or live
 
 // Tier flags so effects only fire once per run
 const tierFired = {
@@ -20,7 +24,15 @@ const tierFired = {
   ignite100: false,
 };
 
-// Canvas setup
+function resetTiers() {
+  tierFired.smoke20 = false;
+  tierFired.smoke50 = false;
+  tierFired.sparks75 = false;
+  tierFired.ignite100 = false;
+  hintText.textContent = "Forge run: demo mode";
+}
+
+// Canvas effects
 const canvas = document.getElementById("fx");
 const ctx = canvas.getContext("2d", { alpha: true });
 
@@ -42,7 +54,7 @@ function addSmokeBurst(intensity = 1, seconds = 6) {
   const end = start + seconds * 1000;
 
   function spawn() {
-    // Spawn around the meter area (top left). If you move meter, we can adjust these.
+    // meter is positioned around left:40 top:40 in CSS
     const baseX = 40;
     const baseY = 40 + 50;
 
@@ -115,7 +127,6 @@ function render(dt) {
     p.y += p.vy * (dt / 1000);
 
     if (p.kind === "smoke") {
-      // Smoke slows and expands, fades out
       p.vx *= 0.985;
       p.vy *= 0.99;
 
@@ -132,7 +143,6 @@ function render(dt) {
     }
 
     if (p.kind === "spark") {
-      // Sparks drop with gravity and fade
       p.vy += 520 * (dt / 1000);
       const alpha = 0.95 * (1 - t);
 
@@ -153,20 +163,12 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-function resetTiers() {
-  tierFired.smoke20 = false;
-  tierFired.smoke50 = false;
-  tierFired.sparks75 = false;
-  tierFired.ignite100 = false;
-  hintText.textContent = "Forge run: live volume";
-}
-
 function setMeter(usd) {
-  currentUsd = Math.max(0, usd);
-  const pct = Math.min((currentUsd / GOAL) * 100, 100);
+  const safeUsd = Math.max(0, usd);
+  const pct = Math.min((safeUsd / GOAL) * 100, 100);
 
   fillEl.style.width = pct.toFixed(2) + "%";
-  usdText.textContent = `$${currentUsd.toFixed(2)} / $${GOAL}`;
+  usdText.textContent = `$${safeUsd.toFixed(2)} / $${GOAL}`;
   pctText.textContent = `${Math.floor(pct)}%`;
 
   if (pct >= 20 && !tierFired.smoke20) {
@@ -192,27 +194,26 @@ function setMeter(usd) {
     hintText.textContent = "IGNITION, 100% reached";
     igniteBurst();
   }
+
+  if (pct < 20 && mode === "demo") {
+    hintText.textContent = "Forge run: demo mode";
+  }
 }
 
-// Debug mode, fakes buys so you can see effects
-const params = new URLSearchParams(location.search);
-const debug = params.get("debug") === "1";
-
-if (debug) {
+// Demo animation always runs unless mode=live
+if (mode !== "live") {
   resetTiers();
   let v = 0;
 
   setInterval(() => {
     v += 25 + Math.random() * 55;
-
-    // loop back to 0 so you can watch tiers fire again
     if (v > 520) {
       v = 0;
       resetTiers();
     }
-
     setMeter(v);
   }, 1200);
 } else {
+  hintText.textContent = "Live mode waiting for data";
   setMeter(0);
 }
