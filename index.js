@@ -12,38 +12,55 @@ app.get("/ping", (req, res) => res.status(200).send("ok"));
 // --- Buy Meter State ---
 let sessionUsd = 0;
 const goalUsd = 500;
+
 // SOL price cache
 let cachedSolUsd = 0;
 let lastSolUsdFetch = 0;
+
 function addBuyToMeter(amountUsd) {
   const n = Number(amountUsd);
   if (!Number.isFinite(n) || n <= 0) return;
   sessionUsd += n;
 }
+
 async function getSolUsd() {
   const now = Date.now();
-  if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) return cachedSolUsd;
+  if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) {
+    return cachedSolUsd;
+  }
 
   return new Promise((resolve) => {
     require("https")
-      .get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", (resp) => {
-        let data = "";
-        resp.on("data", (chunk) => (data += chunk));
-        resp.on("end", () => {
-          try {
-            const j = JSON.parse(data);
-            const p = Number(j?.solana?.usd || 0);
-            if (p > 0) {
-              cachedSolUsd = p;
-              lastSolUsdFetch = now;
-            }
-          } catch (e) {}
-          resolve(cachedSolUsd);
-        });
-      })
-      .on("error", () => resolve(cachedSolUsd));
+      .get(
+        "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+        (resp) => {
+          let data = "";
+
+          resp.on("data", (chunk) => {
+            data += chunk;
+          });
+
+          resp.on("end", () => {
+            try {
+              const j = JSON.parse(data);
+              const p = Number(j?.solana?.usd || 0);
+
+              if (p > 0) {
+                cachedSolUsd = p;
+                lastSolUsdFetch = now;
+              }
+            } catch (e) {}
+
+            resolve(cachedSolUsd);
+          });
+        }
+      )
+      .on("error", () => {
+        resolve(cachedSolUsd);
+      });
   });
 }
+
 
           } catch (e) {}
           resolve(cachedSolUsd);
@@ -334,6 +351,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
