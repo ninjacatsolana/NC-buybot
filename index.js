@@ -9,7 +9,9 @@ app.use(express.json({ limit: "2mb" }));
 // --- Buy Meter State ---
 let sessionUsd = 0;
 const goalUsd = 500;
-
+// SOL price cache
+let cachedSolUsd = 0;
+let lastSolUsdFetch = 0;
 function addBuyToMeter(amountUsd) {
   const n = Number(amountUsd);
   if (!Number.isFinite(n) || n <= 0) return;
@@ -329,6 +331,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
