@@ -216,19 +216,27 @@
     if (pct < 20) hintText.textContent = "Forge run: demo mode";
   }
 
-  // Demo loop so you can see it right away
-  resetTiers();
-  let v = 0;
+// LIVE MODE, pulls from your Railway buybot
+hintText.textContent = "Live mode, waiting for buys";
 
-  setInterval(() => {
-    v += 25 + Math.random() * 55;
-    if (v > 520) {
-      v = 0;
-      resetTiers();
+const METER_URL = "https://nc-buybot-production-2946.up.railway.app/meter";
+
+async function pollMeter() {
+  try {
+    const r = await fetch(METER_URL, { cache: "no-store" });
+    const data = await r.json();
+
+    if (typeof data.sessionUsd === "number") {
+      setMeter(data.sessionUsd);
     }
-    setMeter(v);
-  }, 1200);
-</script>
+  } catch (e) {
+    // keep last value if network hiccups
+  }
+}
+
+setInterval(pollMeter, 1000);
+pollMeter();
+
 
 </body>
 </html>
