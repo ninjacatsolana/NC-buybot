@@ -250,18 +250,33 @@ const trader =
 
 const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
 
-let ncIn = 0;
-let ncOut = 0;
+let buyAmount = 0;
+let sellAmount = 0;
 
 for (const t of ncTransfers) {
   const amt = Number(t.tokenAmount || 0);
   if (!amt) continue;
 
-  if (t.toUserAccount === trader) ncIn += amt;
-  if (t.fromUserAccount === trader) ncOut += amt;
+  const fromUser = t.fromUserAccount;
+  const toUser = t.toUserAccount;
+
+  // BUY: pool -> user
+  if (fromUser === NC_POOL && toUser && toUser !== NC_POOL) {
+    buyAmount += amt;
+  }
+
+  // SELL: user -> pool
+  if (toUser === NC_POOL && fromUser && fromUser !== NC_POOL) {
+    sellAmount += amt;
+  }
 }
 
-const ncDelta = ncIn - ncOut;
+const ncDelta = buyAmount - sellAmount;
+
+console.log("[NC FLOW]", { buyAmount, sellAmount, ncDelta });
+
+
+
 
 // 🔎 DEBUG – ADD THIS BLOCK
 console.log("sig:", sig);
@@ -391,6 +406,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
