@@ -1,1 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NC Buy Meter Overlay</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Effects canvas sits behind the meter -->
+  <canvas id="fx"></canvas>
+
+  <div class="wrap" id="wrap">
+    <div class="topRow">
+      <div class="title">BUY METER</div>
+      <div class="rightText">
+        <span class="usd" id="usdText">$0 / $500</span>
+        <span class="pct" id="pctText">0%</span>
+      </div>
+    </div>
+
+    <div class="barOuter">
+      <div class="barInner">
+        <div class="ticks">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="fill" id="fill"></div>
+        <div class="shine"></div>
+      </div>
+    </div>
+
+    <div class="bottomRow">
+      <div class="sub">NINJA CAT ON TWITCH</div>
+      <div class="hint" id="hintText">Forge run: live volume</div>
+    </div>
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>
 
