@@ -1,7 +1,7 @@
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
-const https = require("https");
+
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -20,7 +20,7 @@ async function getSolUsd() {
   if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) return cachedSolUsd;
 
   return new Promise((resolve) => {
-    https
+    require("https")
       .get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", (resp) => {
         let data = "";
         resp.on("data", (chunk) => (data += chunk));
@@ -32,6 +32,14 @@ async function getSolUsd() {
               cachedSolUsd = p;
               lastSolUsdFetch = now;
             }
+          } catch (e) {}
+          resolve(cachedSolUsd);
+        });
+      })
+      .on("error", () => resolve(cachedSolUsd));
+  });
+}
+
           } catch (e) {}
           resolve(cachedSolUsd);
         });
@@ -321,6 +329,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
