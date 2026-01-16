@@ -1,50 +1,9 @@
-console.log("BOOTING NC BUYBOT", new Date().toISOString());
-
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
-
-app.get("/ping", (req, res) => res.status(200).send("ok"));
-app.get("/health", (req, res) => res.status(200).send("ok"));
-app.get("/helius", (req, res) => {
-  res.status(200).send("Helius endpoint is POST only. If you see this, the path is correct.");
-});
-
-app.get("/", (req, res) => {
-  res.status(200).send("NC buybot is alive");
-});
-
-
-
-
-app.get("/meter/test", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  const n = Number(req.query.usd || 25);
-  addBuyToMeter(n);
-  res.json({ ok: true, added: n, sessionUsd, goalUsd });
-});
-
-
-getSolUsd().catch(() => {});
-setInterval(() => getSolUsd().catch(() => {}), 60_000);
-
-
-// Meter read endpoint for the overlay
-app.get("/meter", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "no-store");
-  res.json({ sessionUsd, goalUsd });
-});
-
-// Optional reset endpoint for new stream
-app.post("/meter/reset", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  sessionUsd = 0;
-  res.json({ ok: true, sessionUsd, goalUsd });
-});
 
 // ---------- Twitter ----------
 const twitter = new TwitterApi({
@@ -80,19 +39,6 @@ async function tweetWithImage(text) {
     media: { media_ids: [mediaId] },
   });
 }
-function pickSolSpent(e, trader) {
-  const nts = Array.isArray(e?.nativeTransfers) ? e.nativeTransfers : [];
-  let lamports = 0;
-
-  for (const t of nts) {
-    if (t?.fromUserAccount === trader) {
-      lamports += Number(t?.amount || 0);
-    }
-  }
-
-  if (lamports <= 0) return null;
-  return lamports / 1_000_000_000;
-}
 
 
 
@@ -109,20 +55,7 @@ function lamportsToSol(lamports) {
   return lamports / 1_000_000_000;
 }
 
-function pickSolSpent(e, trader) {
-  // 1) Best: nativeTransfers (SOL moved)
-  const nts = Array.isArray(e?.nativeTransfers) ? e.nativeTransfers : [];
-  let sumLamports = 0;
-
-  for (const t of nts) {
-    if (t?.fromUserAccount === trader) {
-      sumLamports += Number(t?.amount || 0);
-    }
-  }
-
-  if (sumLamports > 0) return sumLamports / 1_000_000_000;
-
-  // 2) Fallback: nativeBalanceChanges
+function pickSolSpent(e) {
   const changes = Array.isArray(e?.nativeBalanceChanges)
     ? e.nativeBalanceChanges
     : [];
@@ -131,13 +64,13 @@ function pickSolSpent(e, trader) {
 
   for (const c of changes) {
     const lamports = Number(c?.amount || 0);
-    if (lamports < 0 && (best === null || lamports < best)) {
+    if (lamports < 0 && (!best || lamports < best.lamports)) {
       best = lamports;
     }
   }
 
-  if (best === null) return null;
-  return Math.abs(best) / 1_000_000_000;
+  if (!best) return null;
+  return Math.abs(lamportsToSol(best));
 }
 
 // ---------- Health ----------
@@ -170,10 +103,6 @@ require("https")
 
 // ---------- Helius webhook ----------
 app.post("/helius", async (req, res) => {
-  console.log("[HELIUS HIT]", new Date().toISOString());
-console.log("[HELIUS BODY TYPE]", Array.isArray(req.body) ? "array" : typeof req.body);
-console.log("[HELIUS EVENTS]", Array.isArray(req.body) ? req.body.length : 0);
-  
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
 console.log("Helius webhook hit:", events.length);
@@ -187,8 +116,14 @@ for (const e of events) {
 
   // Ignore NFT sales
   if (e.type === "NFT_SALE") continue;
+
   
-// Check token transfers
+
+
+
+
+
+      // Check token transfers
       const transfers = Array.isArray(e?.tokenTransfers)
         ? e.tokenTransfers
         : [];
@@ -199,87 +134,26 @@ const trader =
   e.tokenTransfers?.[0]?.toUserAccount ||
   e.tokenTransfers?.[0]?.fromUserAccount;
 
-    if (!trader) {
-      console.log("No trader found, skipping. sig:", sig);
-      continue;
-     // Only continue for TRANSFER events
-if (e.type !== "TRANSFER") continue;
-
-// NC transfers only
-const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
-if (!ncTransfers.length) continue;
-
-// BUY logic, pool -> user
-let buyAmount = 0;
-for (const t of ncTransfers) {
-  const amt = Number(t.tokenAmount || 0);
-  if (!amt) continue;
-
-  const fromUser = t.fromUserAccount;
-  const toUser = t.toUserAccount;
-
-  if (fromUser === NC_POOL && toUser && toUser !== NC_POOL) {
-    buyAmount += amt;
-  }
+if (!trader) {
+  console.log("No trader found, skipping. sig:", sig);
+  continue;
 }
-
-if (buyAmount <= 0) continue;
-
-// At this point it is a BUY, trigger your existing actions here
-// IMPORTANT, do NOT add meter code here right now
-console.log("BUY DETECTED:", { sig, trader, buyAmount });
-
-// TODO, keep your existing X post and alert trigger lines here, whatever you had working before
- 
-    }
-
-    // keep going, do NOT end the route here
-
-    // ... ALL your buy logic stays here ...
-
-  } // end for (const e of events)
-
-  return res.status(200).send("ok");
-} catch (err) {
-  console.error("Helius error:", err);
-  return res.status(500).send("error");
-}
-});
-
-
-
 
 
 const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
 
-let buyAmount = 0;
-let sellAmount = 0;
+let ncIn = 0;
+let ncOut = 0;
 
 for (const t of ncTransfers) {
   const amt = Number(t.tokenAmount || 0);
   if (!amt) continue;
 
-  const fromUser = t.fromUserAccount;
-  const toUser = t.toUserAccount;
-
-  // BUY: pool -> user
- if (fromUser === NC_POOL && toUser && toUser !== NC_POOL) {
-  buyAmount += amt;
+  if (t.toUserAccount === trader) ncIn += amt;
+  if (t.fromUserAccount === trader) ncOut += amt;
 }
 
-
-  // SELL: user -> pool
-  if (toUser === NC_POOL && fromUser && fromUser !== NC_POOL) {
-    sellAmount += amt;
-  }
-}
-
-const ncDelta = buyAmount - sellAmount;
-
-console.log("[NC FLOW]", { buyAmount, sellAmount, ncDelta });
-
-
-
+const ncDelta = ncIn - ncOut;
 
 // 🔎 DEBUG – ADD THIS BLOCK
 console.log("sig:", sig);
@@ -292,27 +166,25 @@ if (ncTransfers[0]) {
   console.log("sample nc transfer:", ncTransfers[0]);
 }
 
+console.log("ncIn:", ncIn, "ncOut:", ncOut, "ncDelta:", ncDelta);
+
+// 🚫 SKIP IF NO NET CHANGE
+if (ncDelta === 0) continue;
 
 
-// Use the NEW ncDelta from buyAmount/sellAmount
+const side = ncDelta > 0 ? "BUY" : "SELL";
+
+// 🚫 SKIP SELLS
 if (ncDelta <= 0) {
   console.log("Skipping non-buy tx:", sig, "ncDelta:", ncDelta);
   continue;
 }
-const side = "BUY";
-
-if (buyUsd > 0) {
-  addBuyToMeter(buyUsd);
-  console.log("[METER ADD OK]", { sessionUsd_after: sessionUsd });
-} else {
-  console.log("[METER SKIP]", { reason: "buyUsd <= 0" });
-}
-
 
 
 const tokenQty = Math.abs(ncDelta);
 
 
+const solSpent = null;
 
 const txLink = `https://solscan.io/tx/${sig}`;
 
@@ -384,38 +256,12 @@ app.get("/poll-alert", (req, res) => {
 });
 
 
-// -------- Start --------
+// --------- Start ---------
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
