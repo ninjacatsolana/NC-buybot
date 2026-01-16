@@ -1,7 +1,7 @@
-
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
+const https = require("https");
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -15,25 +15,31 @@ function addBuyToMeter(amountUsd) {
   if (!Number.isFinite(n) || n <= 0) return;
   sessionUsd += n;
 }
-let cachedSolUsd = 0;
-let lastSolUsdFetch = 0;
-
 async function getSolUsd() {
   const now = Date.now();
   if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) return cachedSolUsd;
 
-  try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
-    const j = await r.json();
-    const p = Number(j?.solana?.usd || 0);
-    if (p > 0) {
-      cachedSolUsd = p;
-      lastSolUsdFetch = now;
-    }
-  } catch (e) {}
-
-  return cachedSolUsd;
+  return new Promise((resolve) => {
+    https
+      .get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => (data += chunk));
+        resp.on("end", () => {
+          try {
+            const j = JSON.parse(data);
+            const p = Number(j?.solana?.usd || 0);
+            if (p > 0) {
+              cachedSolUsd = p;
+              lastSolUsdFetch = now;
+            }
+          } catch (e) {}
+          resolve(cachedSolUsd);
+        });
+      })
+      .on("error", () => resolve(cachedSolUsd));
+  });
 }
+
 
 // Meter read endpoint for the overlay
 app.get("/meter", (req, res) => {
@@ -315,6 +321,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
