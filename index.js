@@ -20,6 +20,25 @@ function addBuyToMeter(amountUsd) {
   if (!Number.isFinite(n) || n <= 0) return;
   sessionUsd += n;
 }
+let cachedSolUsd = 0;
+let lastSolUsdFetch = 0;
+
+async function getSolUsd() {
+  const now = Date.now();
+  if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) return cachedSolUsd;
+
+  try {
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
+    const j = await r.json();
+    const p = Number(j?.solana?.usd || 0);
+    if (p > 0) {
+      cachedSolUsd = p;
+      lastSolUsdFetch = now;
+    }
+  } catch (e) {}
+
+  return cachedSolUsd;
+}
 
 // Meter read endpoint for the overlay
 app.get("/meter", (req, res) => {
@@ -209,6 +228,15 @@ if (ncDelta <= 0) {
   console.log("Skipping non-buy tx:", sig, "ncDelta:", ncDelta);
   continue;
 }
+// --- Feed Buy Meter ---
+const solSpent = pickSolSpent(e);
+if (solSpent) {
+  const solUsd = await getSolUsd(); // from the helper we added earlier
+  if (solUsd > 0) {
+    const buyUsd = solSpent * solUsd;
+    addBuyToMeter(buyUsd);
+  }
+}
 
 
 const tokenQty = Math.abs(ncDelta);
@@ -292,6 +320,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
