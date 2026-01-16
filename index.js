@@ -9,6 +9,9 @@ app.use(express.json({ limit: "2mb" }));
 
 app.get("/ping", (req, res) => res.status(200).send("ok"));
 app.get("/health", (req, res) => res.status(200).send("ok"));
+app.get("/helius", (req, res) => {
+  res.status(200).send("Helius endpoint is POST only. If you see this, the path is correct.");
+});
 
 app.get("/", (req, res) => {
   res.status(200).send("NC buybot is alive");
@@ -194,6 +197,10 @@ require("https")
 
 // ---------- Helius webhook ----------
 app.post("/helius", async (req, res) => {
+  console.log("[HELIUS HIT]", new Date().toISOString());
+console.log("[HELIUS BODY TYPE]", Array.isArray(req.body) ? "array" : typeof req.body);
+console.log("[HELIUS EVENTS]", Array.isArray(req.body) ? req.body.length : 0);
+  
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
 console.log("Helius webhook hit:", events.length);
@@ -207,14 +214,8 @@ for (const e of events) {
 
   // Ignore NFT sales
   if (e.type === "NFT_SALE") continue;
-
   
-
-
-
-
-
-      // Check token transfers
+// Check token transfers
       const transfers = Array.isArray(e?.tokenTransfers)
         ? e.tokenTransfers
         : [];
@@ -225,10 +226,26 @@ const trader =
   e.tokenTransfers?.[0]?.toUserAccount ||
   e.tokenTransfers?.[0]?.fromUserAccount;
 
-if (!trader) {
-  console.log("No trader found, skipping. sig:", sig);
-  continue;
+    if (!trader) {
+      console.log("No trader found, skipping. sig:", sig);
+      continue;
+    }
+
+    // keep going, do NOT end the route here
+
+    // ... ALL your buy logic stays here ...
+
+  } // end for (const e of events)
+
+  return res.status(200).send("ok");
+} catch (err) {
+  console.error("Helius error:", err);
+  return res.status(500).send("error");
 }
+});
+
+
+
 
 
 const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
@@ -374,6 +391,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
