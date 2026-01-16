@@ -249,15 +249,28 @@ if (ncDelta <= 0) {
   console.log("Skipping non-buy tx:", sig, "ncDelta:", ncDelta);
   continue;
 }
-// --- Feed Buy Meter ---
+// --- Feed Buy Meter (DEBUG) ---
 const solSpent = pickSolSpent(e);
-if (solSpent) {
-  const solUsd = await getSolUsd(); // from the helper we added earlier
-  if (solUsd > 0) {
-    const buyUsd = solSpent * solUsd;
-    addBuyToMeter(buyUsd);
-  }
+const solUsd = await getSolUsd();
+const buyUsd = (solSpent || 0) * (solUsd || 0);
+
+console.log("[METER DEBUG]", {
+  sig,
+  side,
+  ncDelta,
+  solSpent,
+  solUsd,
+  buyUsd,
+  sessionUsd_before: sessionUsd
+});
+
+if (buyUsd > 0) {
+  addBuyToMeter(buyUsd);
+  console.log("[METER ADD OK]", { sessionUsd_after: sessionUsd });
+} else {
+  console.log("[METER SKIP]", { reason: "buyUsd <= 0" });
 }
+
 
 
 const tokenQty = Math.abs(ncDelta);
@@ -340,6 +353,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
