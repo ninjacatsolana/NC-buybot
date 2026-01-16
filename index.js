@@ -102,6 +102,28 @@ app.post("/helius", async (req, res) => {
 
       // Only look at NC transfers
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
+if (ncTransfers.length > 0) {
+  let tokenQty = 0;
+  for (const t of ncTransfers) tokenQty += Number(t.tokenAmount || 0);
+  tokenQty = Math.abs(tokenQty);
+
+  const txLink = `https://solscan.io/tx/${sig}`;
+  const tweet =
+    `🐾 NC BUY\n` +
+    `Amount: ${tokenQty.toLocaleString()} NC\n` +
+    `Wallet: ${shortAddr(trader)}\n` +
+    `TX: ${txLink}`;
+
+  console.log("ABOUT TO TWEET:", tweet);
+
+  const resp = await tweetWithImage(tweet);
+  console.log("TWEET SENT OK:", resp.data?.id);
+
+  lastAlert = { msg: "Ninja Cat Buy!", ts: Date.now() };
+  console.log("ALERT SET");
+
+  continue;
+}
 
       // Add up how much NC moved in this event
       let movedNc = 0;
@@ -182,4 +204,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
