@@ -19,47 +19,7 @@ app.get("/", (req, res) => {
 
 
 
-// --- Buy Meter State ---
-let sessionUsd = 0;
-const goalUsd = 500;
 
-// SOL price cache
-let cachedSolUsd = 0;
-let lastSolUsdFetch = 0;
-
-function addBuyToMeter(amountUsd) {
-  const n = Number(amountUsd);
-  if (!Number.isFinite(n) || n <= 0) return;
-  sessionUsd += n;
-}
-
-async function getSolUsd() {
-  const now = Date.now();
-  if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) return cachedSolUsd;
-
-  return new Promise((resolve) => {
-    const url =
-      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
-
-    require("https")
-      .get(url, (resp) => {
-        let data = "";
-        resp.on("data", (chunk) => (data += chunk));
-        resp.on("end", () => {
-          try {
-            const j = JSON.parse(data);
-            const p = Number(j?.solana?.usd || 0);
-            if (p > 0) {
-              cachedSolUsd = p;
-              lastSolUsdFetch = now;
-            }
-          } catch (e) {}
-          resolve(cachedSolUsd);
-        });
-      })
-      .on("error", () => resolve(cachedSolUsd));
-  });
-}
 app.get("/meter/test", (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   const n = Number(req.query.usd || 25);
@@ -119,6 +79,19 @@ async function tweetWithImage(text) {
     text,
     media: { media_ids: [mediaId] },
   });
+}
+function pickSolSpent(e, trader) {
+  const nts = Array.isArray(e?.nativeTransfers) ? e.nativeTransfers : [];
+  let lamports = 0;
+
+  for (const t of nts) {
+    if (t?.fromUserAccount === trader) {
+      lamports += Number(t?.amount || 0);
+    }
+  }
+
+  if (lamports <= 0) return null;
+  return lamports / 1_000_000_000;
 }
 
 
@@ -229,6 +202,35 @@ const trader =
     if (!trader) {
       console.log("No trader found, skipping. sig:", sig);
       continue;
+     // Only continue for TRANSFER events
+if (e.type !== "TRANSFER") continue;
+
+// NC transfers only
+const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
+if (!ncTransfers.length) continue;
+
+// BUY logic, pool -> user
+let buyAmount = 0;
+for (const t of ncTransfers) {
+  const amt = Number(t.tokenAmount || 0);
+  if (!amt) continue;
+
+  const fromUser = t.fromUserAccount;
+  const toUser = t.toUserAccount;
+
+  if (fromUser === NC_POOL && toUser && toUser !== NC_POOL) {
+    buyAmount += amt;
+  }
+}
+
+if (buyAmount <= 0) continue;
+
+// At this point it is a BUY, trigger your existing actions here
+// IMPORTANT, do NOT add meter code here right now
+console.log("BUY DETECTED:", { sig, trader, buyAmount });
+
+// TODO, keep your existing X post and alert trigger lines here, whatever you had working before
+ 
     }
 
     // keep going, do NOT end the route here
@@ -261,9 +263,10 @@ for (const t of ncTransfers) {
   const toUser = t.toUserAccount;
 
   // BUY: pool -> user
-  if (fromUser === NC_POOL && toUser && toUser !== NC_POOL) {
-    buyAmount += amt;
-  }
+ if (fromUser === NC_POOL && toUser && toUser !== NC_POOL) {
+  buyAmount += amt;
+}
+
 
   // SELL: user -> pool
   if (toUser === NC_POOL && fromUser && fromUser !== NC_POOL) {
@@ -297,30 +300,6 @@ if (ncDelta <= 0) {
   continue;
 }
 const side = "BUY";
-
-
-
-
-
-// 🚫 SKIP SELLS
-if (ncDelta <= 0) {
-  console.log("Skipping non-buy tx:", sig, "ncDelta:", ncDelta);
-  continue;
-}
-// --- Feed Buy Meter (DEBUG) ---
-const solSpent = pickSolSpent(e, trader);
-const solUsd = await getSolUsd();
-const buyUsd = (solSpent || 0) * (solUsd || 0);
-
-console.log("[METER DEBUG]", {
-  sig,
-  side,
-  ncDelta,
-  solSpent,
-  solUsd,
-  buyUsd,
-  sessionUsd_before: sessionUsd
-});
 
 if (buyUsd > 0) {
   addBuyToMeter(buyUsd);
@@ -411,6 +390,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
