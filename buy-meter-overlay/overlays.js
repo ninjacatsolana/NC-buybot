@@ -30,5 +30,3 @@ if (debug) {
 } else {
   setMeter(0);
 }
-
-
