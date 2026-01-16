@@ -125,7 +125,20 @@ function lamportsToSol(lamports) {
   return lamports / 1_000_000_000;
 }
 
-function pickSolSpent(e) {
+function pickSolSpent(e, trader) {
+  // 1) Best: nativeTransfers (SOL moved)
+  const nts = Array.isArray(e?.nativeTransfers) ? e.nativeTransfers : [];
+  let sumLamports = 0;
+
+  for (const t of nts) {
+    if (t?.fromUserAccount === trader) {
+      sumLamports += Number(t?.amount || 0);
+    }
+  }
+
+  if (sumLamports > 0) return sumLamports / 1_000_000_000;
+
+  // 2) Fallback: nativeBalanceChanges
   const changes = Array.isArray(e?.nativeBalanceChanges)
     ? e.nativeBalanceChanges
     : [];
@@ -134,13 +147,13 @@ function pickSolSpent(e) {
 
   for (const c of changes) {
     const lamports = Number(c?.amount || 0);
-    if (lamports < 0 && (!best || lamports < best.lamports)) {
+    if (lamports < 0 && (best === null || lamports < best)) {
       best = lamports;
     }
   }
 
-  if (!best) return null;
-  return Math.abs(lamportsToSol(best));
+  if (best === null) return null;
+  return Math.abs(best) / 1_000_000_000;
 }
 
 // ---------- Health ----------
@@ -250,7 +263,7 @@ if (ncDelta <= 0) {
   continue;
 }
 // --- Feed Buy Meter (DEBUG) ---
-const solSpent = pickSolSpent(e);
+const solSpent = pickSolSpent(e, trader);
 const solUsd = await getSolUsd();
 const buyUsd = (solSpent || 0) * (solUsd || 0);
 
@@ -353,6 +366,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
