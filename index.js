@@ -72,7 +72,7 @@ app.get("/test-tweet", async (req, res) => {
     const resp = await tweetWithImage(msg);
     console.log("TWEET SENT OK:", resp.data?.id);
 
-    fireAlert("Ninja Cat Buy");
+   
 
     res.status(200).send("Tweet sent ✅");
   } catch (err) {
@@ -140,7 +140,7 @@ app.post("/helius", async (req, res) => {
       const resp = await tweetWithImage(tweet);
       console.log("TWEET SENT OK:", resp.data?.id);
 
-      fireAlert("Ninja Cat Buy");
+      
 
       console.log(`Tweeted ${side}:`, sig);
     }
@@ -165,11 +165,11 @@ app.get("/overlay", (req, res) => {
 // ---- Ninja Cat Buy Alert state ----
 let lastAlert = null;
 
-app.get("/fire-alert", (req, res) => {
-  lastAlert = {
-    msg: req.query.msg || "Ninja Cat Buy!",
-    ts: Date.now(),
-  };
+function fireAlert(msg) {
+  lastAlert = { msg: msg || "Ninja Cat Buy!", ts: Date.now() };
+  console.log("ALERT SET:", lastAlert);
+}
+
   res.status(200).send("ok");
 });
 
@@ -182,3 +182,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
