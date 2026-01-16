@@ -289,13 +289,18 @@ if (ncTransfers[0]) {
   console.log("sample nc transfer:", ncTransfers[0]);
 }
 
-console.log("ncIn:", ncIn, "ncOut:", ncOut, "ncDelta:", ncDelta);
-
-// 🚫 SKIP IF NO NET CHANGE
-if (ncDelta === 0) continue;
 
 
-const side = ncDelta > 0 ? "BUY" : "SELL";
+// Use the NEW ncDelta from buyAmount/sellAmount
+if (ncDelta <= 0) {
+  console.log("Skipping non-buy tx:", sig, "ncDelta:", ncDelta);
+  continue;
+}
+const side = "BUY";
+
+
+
+
 
 // 🚫 SKIP SELLS
 if (ncDelta <= 0) {
@@ -406,6 +411,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
