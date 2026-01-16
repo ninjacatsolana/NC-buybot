@@ -8,10 +8,12 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/ping", (req, res) => res.status(200).send("ok"));
+app.get("/health", (req, res) => res.status(200).send("ok"));
 
 app.get("/", (req, res) => {
   res.status(200).send("NC buybot is alive");
 });
+
 
 
 // --- Buy Meter State ---
@@ -372,6 +374,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
