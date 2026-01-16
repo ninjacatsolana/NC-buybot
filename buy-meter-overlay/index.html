@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Effects canvas sits behind the meter -->
   <canvas id="fx"></canvas>
 
   <div class="wrap" id="wrap">
@@ -31,11 +30,30 @@
 
     <div class="bottomRow">
       <div class="sub">NINJA CAT ON TWITCH</div>
-      <div class="hint" id="hintText">Forge run: live volume</div>
+      <div class="hint" id="hintText">Loading JS…</div>
     </div>
   </div>
 
-  <script src="overlay.js"></script>
+  <script>
+    // If you see the hint text change, JS is running.
+    const GOAL = 500;
+    const fillEl = document.getElementById("fill");
+    const usdText = document.getElementById("usdText");
+    const pctText = document.getElementById("pctText");
+    const hintText = document.getElementById("hintText");
+
+    hintText.textContent = "Demo mode running";
+
+    let v = 0;
+    setInterval(() => {
+      v += 25 + Math.random() * 55;
+      if (v > 520) v = 0;
+
+      const pct = Math.min((v / GOAL) * 100, 100);
+      fillEl.style.width = pct.toFixed(2) + "%";
+      usdText.textContent = `$${v.toFixed(2)} / $${GOAL}`;
+      pctText.textContent = `${Math.floor(pct)}%`;
+    }, 1200);
+  </script>
 </body>
 </html>
-
