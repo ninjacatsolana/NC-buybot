@@ -1,9 +1,4 @@
-const express = require("express");
-const { TwitterApi } = require("twitter-api-v2");
-require("dotenv").config();
 
-const app = express();
-app.use(express.json({ limit: "2mb" }));
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
@@ -320,6 +315,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
