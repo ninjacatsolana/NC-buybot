@@ -255,7 +255,6 @@ if (solSpent) {
 const tokenQty = Math.abs(ncDelta);
 
 
-const solSpent = null;
 
 const txLink = `https://solscan.io/tx/${sig}`;
 
@@ -333,6 +332,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
