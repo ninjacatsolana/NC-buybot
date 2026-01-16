@@ -49,6 +49,12 @@ async function getSolUsd() {
       .on("error", () => resolve(cachedSolUsd));
   });
 }
+app.get("/meter/test", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  const n = Number(req.query.usd || 25);
+  addBuyToMeter(n);
+  res.json({ ok: true, added: n, sessionUsd, goalUsd });
+});
 
 
 
@@ -332,6 +338,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
