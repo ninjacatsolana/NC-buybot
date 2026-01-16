@@ -4,7 +4,6 @@ const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
 
-
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.get("/ping", (req, res) => res.status(200).send("ok"));
@@ -25,43 +24,24 @@ function addBuyToMeter(amountUsd) {
 
 async function getSolUsd() {
   const now = Date.now();
-  if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) {
-    return cachedSolUsd;
-  }
+  if (cachedSolUsd > 0 && now - lastSolUsdFetch < 60_000) return cachedSolUsd;
 
   return new Promise((resolve) => {
+    const url =
+      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
+
     require("https")
-      .get(
-        "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
-        (resp) => {
-          let data = "";
-
-          resp.on("data", (chunk) => {
-            data += chunk;
-          });
-
-          resp.on("end", () => {
-            try {
-              const j = JSON.parse(data);
-              const p = Number(j?.solana?.usd || 0);
-
-              if (p > 0) {
-                cachedSolUsd = p;
-                lastSolUsdFetch = now;
-              }
-            } catch (e) {}
-
-            resolve(cachedSolUsd);
-          });
-        }
-      )
-      .on("error", () => {
-        resolve(cachedSolUsd);
-      });
-  });
-}
-
-
+      .get(url, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => (data += chunk));
+        resp.on("end", () => {
+          try {
+            const j = JSON.parse(data);
+            const p = Number(j?.solana?.usd || 0);
+            if (p > 0) {
+              cachedSolUsd = p;
+              lastSolUsdFetch = now;
+            }
           } catch (e) {}
           resolve(cachedSolUsd);
         });
@@ -69,6 +49,8 @@ async function getSolUsd() {
       .on("error", () => resolve(cachedSolUsd));
   });
 }
+
+
 
 
 // Meter read endpoint for the overlay
@@ -351,6 +333,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
