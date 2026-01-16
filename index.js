@@ -57,6 +57,8 @@ app.get("/meter/test", (req, res) => {
 });
 
 
+getSolUsd().catch(() => {});
+setInterval(() => getSolUsd().catch(() => {}), 60_000);
 
 
 // Meter read endpoint for the overlay
@@ -338,6 +340,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
