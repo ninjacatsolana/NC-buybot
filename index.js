@@ -111,7 +111,13 @@ app.post("/helius", async (req, res) => {
       for (const t of ncTransfers) tokenQty += Number(t?.tokenAmount || 0);
       tokenQty = Math.abs(tokenQty);
 
-      if (!Number.isFinite(tokenQty) || tokenQty <= 0) continue;
+      console.log("TOKENQTY CHECK:", { tokenQty, finite: Number.isFinite(tokenQty) });
+
+if (!Number.isFinite(tokenQty) || tokenQty <= 0) {
+  console.log("SKIPPING because tokenQty is not valid");
+  continue;
+}
+
 
       const txLink = `https://solscan.io/tx/${sig}`;
       const tweet =
@@ -163,4 +169,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
