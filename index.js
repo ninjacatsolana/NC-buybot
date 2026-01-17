@@ -92,21 +92,61 @@ app.post("/helius", async (req, res) => {
     console.log("Helius webhook hit:", events.length);
 
     for (const e of events) {
-      console.log("Event type:", e?.type);
+  console.log("Event type:", e?.type);
 
-      const sig = e?.signature;
-      if (!sig || seen.has(sig)) continue;
-      seen.add(sig);
+  const sig = e?.signature;
+  if (!sig || seen.has(sig)) continue;
+  seen.add(sig);
 
-      if (e?.type === "NFT_SALE") continue;
+  if (e?.type === "NFT_SALE") continue;
 
-      const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
-      const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
+  const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
 
-      console.log("transfers total:", transfers.length);
-      console.log("ncTransfers length:", ncTransfers.length);
+  // Only NC transfers
+  const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
+  console.log("ncTransfers length:", ncTransfers.length);
 
-      if (ncTransfers.length === 0) continue;
+  if (ncTransfers.length === 0) continue;
+
+  // Sum all NC moved
+  let tokenQty = 0;
+  for (const t of ncTransfers) tokenQty += Number(t?.tokenAmount || 0);
+  tokenQty = Math.abs(tokenQty);
+
+  console.log("tokenQty:", tokenQty);
+
+  if (!Number.isFinite(tokenQty) || tokenQty <= 0) continue;
+
+  // Wallet to display
+  const trader =
+    e?.feePayer ||
+    ncTransfers?.[0]?.toUserAccount ||
+    ncTransfers?.[0]?.fromUserAccount ||
+    "unknown";
+
+  const txLink = `https://solscan.io/tx/${sig}`;
+
+  const tweet =
+    `🐾 NC BUY\n` +
+    `Amount: ${tokenQty.toLocaleString()} NC\n` +
+    `Wallet: ${shortAddr(trader)}\n` +
+    `TX: ${txLink}`;
+
+  console.log("ABOUT TO TWEET:", tweet);
+
+  try {
+    const resp = await tweetWithImage(tweet);
+    console.log("TWEET SENT OK:", resp.data?.id);
+  } catch (err) {
+    console.log("TWEET FAIL message:", err?.message);
+    console.log("TWEET FAIL data:", err?.data);
+    console.log("TWEET FAIL full:", err);
+  }
+
+  lastAlert = { msg: "Ninja Cat Buy!", ts: Date.now() };
+  console.log("ALERT SET:", lastAlert);
+}
+
 
       // Pick a wallet to display
       const trader =
@@ -152,3 +192,4 @@ app.post("/helius", async (req, res) => {
 // ---------- Start ----------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
