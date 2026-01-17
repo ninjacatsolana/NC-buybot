@@ -1,5 +1,3 @@
-console.log("BOOTING NC BUYBOT VERSION 2026 01 16 FIXED");
-
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 const fs = require("fs");
@@ -9,6 +7,9 @@ require("dotenv").config();
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
+// ---------- Config ----------
+const NC_MINT = "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod";
+
 // ---------- Twitter ----------
 const twitter = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -16,9 +17,6 @@ const twitter = new TwitterApi({
   accessToken: process.env.X_ACCESS_TOKEN,
   accessSecret: process.env.X_ACCESS_SECRET,
 });
-
-// ---------- Ninja Cat config ----------
-const NC_MINT = "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod";
 
 // ---------- State ----------
 const seen = new Set();
@@ -56,17 +54,12 @@ app.get("/ping", (req, res) => res.status(200).send("ok"));
 app.get("/health", (req, res) => res.status(200).send("ok"));
 app.get("/", (req, res) => res.status(200).send("NC buybot is alive"));
 
-// Helpful for browser testing (Helius is POST)
-app.get("/helius", (req, res) => {
-  res.status(200).send("Helius endpoint is POST only.");
-});
-
-// ---------- Test tweet ----------
 app.get("/test-tweet", async (req, res) => {
   try {
     const msg = `🐾 NC Buybot test ${new Date().toISOString()}`;
     const resp = await tweetWithImage(msg);
     console.log("TWEET SENT OK:", resp.data?.id);
+    setAlert("Ninja Cat Buy!");
     res.status(200).send("Tweet sent ✅");
   } catch (err) {
     console.log("TEST TWEET ERROR MESSAGE:", err?.message);
@@ -74,6 +67,22 @@ app.get("/test-tweet", async (req, res) => {
     console.log("TEST TWEET ERROR FULL:", err);
     res.status(500).send("Tweet failed ❌");
   }
+});
+
+// ---------- Overlay ----------
+app.use("/public", express.static(path.join(__dirname, "public")));
+
+app.get("/overlay", (req, res) => {
+  res.redirect("/public/overlay.html");
+});
+
+app.get("/fire-alert", (req, res) => {
+  setAlert(req.query.msg || "Ninja Cat Buy!");
+  res.status(200).send("ok");
+});
+
+app.get("/poll-alert", (req, res) => {
+  res.json(lastAlert);
 });
 
 // ---------- Helius webhook ----------
@@ -94,10 +103,12 @@ app.post("/helius", async (req, res) => {
       const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
 
-      // If this event doesn't include NC transfers, skip it
+      console.log("transfers total:", transfers.length);
+      console.log("ncTransfers length:", ncTransfers.length);
+
       if (ncTransfers.length === 0) continue;
 
-      // Pick a wallet to display (must be defined BEFORE we use it)
+      // Pick a wallet to display
       const trader =
         e?.feePayer ||
         ncTransfers?.[0]?.toUserAccount ||
@@ -106,18 +117,12 @@ app.post("/helius", async (req, res) => {
         transfers?.[0]?.fromUserAccount ||
         "unknown";
 
-      // Sum tokens moved (simple + reliable)
+      // Sum NC moved (simple)
       let tokenQty = 0;
       for (const t of ncTransfers) tokenQty += Number(t?.tokenAmount || 0);
       tokenQty = Math.abs(tokenQty);
 
-      console.log("TOKENQTY CHECK:", { tokenQty, finite: Number.isFinite(tokenQty) });
-
-if (!Number.isFinite(tokenQty) || tokenQty <= 0) {
-  console.log("SKIPPING because tokenQty is not valid");
-  continue;
-}
-
+      if (!Number.isFinite(tokenQty) || tokenQty <= 0) continue;
 
       const txLink = `https://solscan.io/tx/${sig}`;
       const tweet =
@@ -131,9 +136,7 @@ if (!Number.isFinite(tokenQty) || tokenQty <= 0) {
       const resp = await tweetWithImage(tweet);
       console.log("TWEET SENT OK:", resp.data?.id);
 
-      // Trigger your overlay alert
       setAlert("Ninja Cat Buy!");
-
       console.log("DONE sig:", sig);
     }
 
@@ -146,28 +149,6 @@ if (!Number.isFinite(tokenQty) || tokenQty <= 0) {
   }
 });
 
-// ---------- Overlay + public ----------
-app.use("/public", express.static(path.join(__dirname, "public")));
-
-app.get("/overlay", (req, res) => {
-  res.redirect("/public/overlay.html");
-});
-
-// Manually trigger alert in browser:
-app.get("/fire-alert", (req, res) => {
-  setAlert(req.query.msg || "Ninja Cat Buy!");
-  res.status(200).send("ok");
-});
-
-// Overlay polls this:
-app.get("/poll-alert", (req, res) => {
-  res.json(lastAlert);
-});
-
 // ---------- Start ----------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
