@@ -89,41 +89,23 @@ app.get("/test-tweet", async (req, res) => {
 app.post("/helius", async (req, res) => {
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
-    console.log("Helius webhook hit:", events.length);
 
     for (const e of events) {
-      const type = e?.type;
-      const sig = e?.signature;
 
-      console.log("Event type:", type);
-      if (!sig) continue;
-      if (seen.has(sig)) continue;
-      seen.add(sig);
-
-      if (type !== "TRANSFER") continue;
-      if (type === "NFT_SALE") continue;
-
-      const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
-      console.log("transfers total:", transfers.length);
-
-      const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
-      console.log("ncTransfers length:", ncTransfers.length);
+      // ... all your webhook logic ...
 
       if (ncTransfers.length === 0) continue;
 
-      // Sum NC moved (we treat any NC movement as a BUY alert)
+      // sum NC moved
       let tokenQty = 0;
       for (const t of ncTransfers) tokenQty += Number(t?.tokenAmount || 0);
       tokenQty = Math.abs(tokenQty);
 
-      console.log("tokenQty:", tokenQty);
-
       if (!Number.isFinite(tokenQty) || tokenQty <= 0) continue;
 
-      const trader =
+      const buyer =
+        ncTransfers.find(t => t?.toUserAccount)?.toUserAccount ||
         e?.feePayer ||
-        ncTransfers?.[0]?.toUserAccount ||
-        ncTransfers?.[0]?.fromUserAccount ||
         "unknown";
 
       const txLink = `https://solscan.io/tx/${sig}`;
@@ -131,10 +113,8 @@ app.post("/helius", async (req, res) => {
       const tweet =
         `🐾 NC BUY\n` +
         `Amount: ${tokenQty.toLocaleString()} NC\n` +
-        `Wallet: ${shortAddr(trader)}\n` +
+        `Wallet: ${shortAddr(buyer)}\n` +
         `TX: ${txLink}`;
-
-      console.log("ABOUT TO TWEET:\n", tweet);
 
       try {
         const resp = await tweetWithImage(tweet);
@@ -145,18 +125,24 @@ app.post("/helius", async (req, res) => {
         console.log("TWEET FAIL full:", err);
       }
 
-      setAlert("Ninja Cat Buy!");
+      // set overlay alert
+      lastAlert = { msg: "Ninja Cat Buy!", ts: Date.now() };
+      console.log("ALERT SET:", lastAlert);
+
+      continue; // this only skips to the *next event*
     }
 
-    return res.status(200).send("ok");
+    res.status(200).send("ok");
   } catch (err) {
-    console.log("WEBHOOK ERROR message:", err?.message);
-    console.log("WEBHOOK ERROR data:", err?.data);
-    console.log("WEBHOOK ERROR full:", err);
-    return res.status(500).send("error");
+    console.log("Webhook error:", err);
+    res.status(500).send("error");
   }
 });
+
+
+ 
 
 // ---------- Start ----------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
