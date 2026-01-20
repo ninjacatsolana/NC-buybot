@@ -174,24 +174,26 @@ app.post("/helius", async (req, res) => {
 
       console.log("ABOUT TO TWEET:\n", tweetText);
 
-      // Always set the overlay alert even if tweeting fails
-      setAlert(`Ninja Cat Buy! (${tokenQty.toLocaleString()} NC)`);
+    // Always set the overlay alert even if tweeting fails
+setAlert(`Ninja Cat Buy! (${tokenQty.toLocaleString()} NC)`);
 
-      // Queue the tweet to avoid burst failures / rate limit pain
-      await (tweetQueue = tweetQueue
-        .then(async () => {
-          try {
-            const resp = await tweetWithImage(tweetText);
-            console.log("TWEET SENT OK:", resp.data?.id);
-          } catch (err) {
-            console.log("TWEET FAIL message:", err?.message);
-            console.log("TWEET FAIL data:", err?.data);
-            console.log("TWEET FAIL full:", err);
-          }
-        })
-        .catch((e2) => {
-          console.log("tweetQueue error:", e2?.message || e2);
-        }));
+// Queue tweet, do NOT await, let webhook return fast
+tweetQueue = tweetQueue
+  .then(async () => {
+    try {
+      const resp = await tweetWithImage(tweetText);
+      console.log("TWEET SENT OK:", resp.data?.id);
+    } catch (err) {
+      console.log("TWEET FAIL message:", err?.message);
+      console.log("TWEET FAIL data:", err?.data);
+      console.log("TWEET FAIL full:", err);
+    }
+  })
+  .catch((e2) => {
+    console.log("tweetQueue error:", e2?.message || e2);
+  });
+return res.status(200).send("ok");
+
     }
 
     return res.status(200).send("ok");
@@ -208,4 +210,5 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
