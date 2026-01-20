@@ -129,10 +129,8 @@ for (const e of events) {
         : [];
 
       // === FIX BUY vs SELL LOGIC ===
-const trader =
-  e.feePayer ||
-  e.tokenTransfers?.[0]?.toUserAccount ||
-  e.tokenTransfers?.[0]?.fromUserAccount;
+const trader = e.tokenTransfers?.find(t => t.mint === NC_MINT)?.toUserAccount;
+
 
 if (!trader) {
   console.log("No trader found, skipping. sig:", sig);
@@ -142,18 +140,17 @@ if (!trader) {
 
 const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
 
-let ncIn = 0;
-let ncOut = 0;
+let ncDelta = 0;
 
 for (const t of ncTransfers) {
   const amt = Number(t.tokenAmount || 0);
   if (!amt) continue;
 
-  if (t.toUserAccount === trader) ncIn += amt;
-  if (t.fromUserAccount === trader) ncOut += amt;
+  if (t.toUserAccount === trader) {
+    ncDelta += amt;
+  }
 }
 
-const ncDelta = ncIn - ncOut;
 
 // 🔎 DEBUG – ADD THIS BLOCK
 console.log("sig:", sig);
@@ -166,13 +163,15 @@ if (ncTransfers[0]) {
   console.log("sample nc transfer:", ncTransfers[0]);
 }
 
-console.log("ncIn:", ncIn, "ncOut:", ncOut, "ncDelta:", ncDelta);
+console.log("ncDelta:", ncDelta);
+
 
 // 🚫 SKIP IF NO NET CHANGE
 if (ncDelta === 0) continue;
 
 
-const side = ncDelta > 0 ? "BUY" : "SELL";
+const side = "BUY";
+
 
 // 🚫 SKIP SELLS
 if (ncDelta <= 0) {
@@ -262,6 +261,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
