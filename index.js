@@ -1,6 +1,7 @@
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
+console.log("BOOT: index.js loaded at", new Date().toISOString());
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -259,8 +260,10 @@ app.get("/poll-alert", (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("BOOT: listening", { PORT, node: process.version });
 });
+
+
 
 
 
