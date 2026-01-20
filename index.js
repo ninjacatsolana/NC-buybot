@@ -1,27 +1,11 @@
-// 001 index.js
-// 002 Core
 const express = require("express");
-// 003
 const { TwitterApi } = require("twitter-api-v2");
-// 004
-const fs = require("fs");
-// 005
-const path = require("path");
-// 006
 require("dotenv").config();
 
-// 007 Boot log
-console.log("BOOTING NC BUYBOT", new Date().toISOString());
-
-// 008 App
 const app = express();
-// 009
 app.use(express.json({ limit: "2mb" }));
 
-// 010 Config
-const NC_MINT = "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod";
-
-// 011 Twitter client
+// ---------- Twitter ----------
 const twitter = new TwitterApi({
   appKey: process.env.X_API_KEY,
   appSecret: process.env.X_API_SECRET,
@@ -29,222 +13,296 @@ const twitter = new TwitterApi({
   accessSecret: process.env.X_ACCESS_SECRET,
 });
 
-// 012 State
-const seen = new Set();
-// 013
-let lastAlert = null;
-// 014 Tweet queue so we do not spam X all at once
-let tweetQueue = Promise.resolve();
-// 015 Cache media id so we do not re upload every buy
-let cachedMediaId = null;
-// 016
-let mediaInitPromise = null;
+// ---------- Ninja Cat config ----------
+const NC_MINT = "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod";
+const NC_POOL = "F9MJEtLDppZA9d6Su2HomT1Bay3DjZaKSP8SamcrYDP4";
 
-// 017 Helpers
+// ---------- Helpers ----------
+const seen = new Set();
+const fs = require("fs");
+const path = require("path");
+
+async function tweetWithImage(text) {
+  const imagePath = path.join(__dirname, "assets", "buybot.png");
+
+  console.log("IMAGE CHECK:", imagePath, "exists:", fs.existsSync(imagePath));
+
+  const mediaId = await twitter.v1.uploadMedia(
+    fs.readFileSync(imagePath),
+    { mimeType: "image/png" }
+  );
+
+  console.log("MEDIA UPLOADED:", mediaId);
+
+  return twitter.v2.tweet({
+    text,
+    media: { media_ids: [mediaId] },
+  });
+}
+
+
+
+
+  
+
+
 function shortAddr(a) {
   if (!a || typeof a !== "string") return "unknown";
   return a.slice(0, 4) + "…" + a.slice(-4);
 }
 
-// 018 Alert setter
-function setAlert(msg) {
-  lastAlert = { msg: msg || "Ninja Cat Buy!", ts: Date.now() };
-  console.log("ALERT SET:", lastAlert);
+function lamportsToSol(lamports) {
+  return lamports / 1_000_000_000;
 }
 
-// 019 Sum tokenAmount safely
-function sumTokenAmount(transfers) {
-  let total = 0;
-  for (const t of transfers) {
-    const amt = Number(t?.tokenAmount || 0);
-    if (Number.isFinite(amt)) total += amt;
-  }
-  return Math.abs(total);
-}
+function pickSolSpent(e) {
+  const changes = Array.isArray(e?.nativeBalanceChanges)
+    ? e.nativeBalanceChanges
+    : [];
 
-// 020 Ensure media uploaded once
-async function ensureMediaId() {
-  if (cachedMediaId) return cachedMediaId;
-  if (mediaInitPromise) return mediaInitPromise;
+  let best = null;
 
-  mediaInitPromise = (async () => {
-    const imagePath = path.join(__dirname, "assets", "buybot.png");
-    const exists = fs.existsSync(imagePath);
-    console.log("IMAGE CHECK:", imagePath, "exists:", exists);
-
-    if (!exists) {
-      throw new Error("buybot.png not found at " + imagePath);
+  for (const c of changes) {
+    const lamports = Number(c?.amount || 0);
+    if (lamports < 0 && (!best || lamports < best.lamports)) {
+      best = lamports;
     }
-
-    const mediaId = await twitter.v1.uploadMedia(fs.readFileSync(imagePath), {
-      mimeType: "image/png",
-    });
-
-    cachedMediaId = mediaId;
-    console.log("MEDIA READY:", mediaId);
-    return mediaId;
-  })();
-
-  return mediaInitPromise;
-}
-
-// 021 Tweet using cached media id, with one retry on 429 style failures
-async function tweetWithImage(text) {
-  const mediaId = await ensureMediaId();
-
-  try {
-    const resp = await twitter.v2.tweet({
-      text,
-      media: { media_ids: [mediaId] },
-    });
-    return resp;
-  } catch (err) {
-    const status = err?.code || err?.status || err?.data?.status;
-    const msg = err?.message || "unknown error";
-    console.log("TWEET FAIL status:", status, "message:", msg);
-
-    // If media went stale or permissions changed, re upload once and retry
-    cachedMediaId = null;
-    mediaInitPromise = null;
-
-    const mediaId2 = await ensureMediaId();
-    const resp2 = await twitter.v2.tweet({
-      text,
-      media: { media_ids: [mediaId2] },
-    });
-    return resp2;
   }
+
+  if (!best) return null;
+  return Math.abs(lamportsToSol(best));
 }
 
-// 022 Basic routes
-app.get("/ping", (req, res) => res.status(200).send("ok"));
-app.get("/health", (req, res) => res.status(200).send("ok"));
-app.get("/", (req, res) => res.status(200).send("NC buybot is alive"));
-
-// 023 Overlay routes
-app.use("/public", express.static(path.join(__dirname, "public")));
-app.get("/overlay", (req, res) => res.redirect("/public/overlay.html"));
-
-app.get("/fire-alert", (req, res) => {
-  setAlert(req.query.msg || "Ninja Cat Buy!");
+// ---------- Health ----------
+app.get("/health", (req, res) => {
   res.status(200).send("ok");
 });
 
-app.get("/poll-alert", (req, res) => {
-  res.json(lastAlert);
-});
-
-// 024 Test tweet route
+// ---------- Test tweet ----------
 app.get("/test-tweet", async (req, res) => {
   try {
     const msg = `🐾 NC Buybot test ${new Date().toISOString()}`;
-    const resp = await tweetWithImage(msg);
-    console.log("TEST TWEET SENT OK:", resp?.data?.id);
-    setAlert("Test alert ✅");
+
+    const resp = await tweetWithImage(msg, "./assets/buybot.png");
+
+    console.log("TWEET SENT OK:", resp.data?.id);
+
+require("https")
+  .get("https://nc-buybot-production-2946.up.railway.app/fire-alert?msg=Ninja+Cat+Buy")
+  .on("error", () => {});
+
     res.status(200).send("Tweet sent ✅");
   } catch (err) {
-    console.log("TEST TWEET FAIL message:", err?.message);
-    console.log("TEST TWEET FAIL data:", err?.data);
-    console.log("TEST TWEET FAIL full:", err);
+    console.log("TEST TWEET ERROR MESSAGE:", err?.message);
+    console.log("TEST TWEET ERROR DATA:", err?.data);
+    console.log("TEST TWEET ERROR FULL:", err);
     res.status(500).send("Tweet failed ❌");
   }
 });
 
-// 025 Helius webhook
-app.post("/helius", (req, res) => {
-  // Always respond fast so Helius does not retry or time out
-  res.status(200).send("ok");
 
-  // Process async
-  (async () => {
-    try {
-      const events = Array.isArray(req.body) ? req.body : [req.body];
-      console.log("Helius webhook hit:", events.length);
+// ---------- Helius webhook ----------
+app.post("/helius", async (req, res) => {
+  try {
+    const events = Array.isArray(req.body) ? req.body : [req.body];
+console.log("Helius webhook hit:", events.length);
 
-      for (const e of events) {
-        const type = e?.type;
-        const sig = e?.signature;
+for (const e of events) {
+  console.log("Event type:", e.type);
 
-        console.log("Event type:", type);
-        if (!sig) continue;
+  const sig = e?.signature;
+  if (!sig || seen.has(sig)) continue;
+  seen.add(sig);
 
-        if (seen.has(sig)) {
-          console.log("Skipping duplicate sig:", sig);
-          continue;
-        }
-        seen.add(sig);
+  // Ignore NFT sales
+  if (e.type === "NFT_SALE") continue;
 
-        // Prevent memory creep
-        if (seen.size > 2000) {
-          console.log("Seen set too big, clearing");
-          seen.clear();
-          seen.add(sig);
-        }
+  
 
-        if (type === "NFT_SALE") continue;
-        if (type !== "TRANSFER") continue;
 
-        const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
-        console.log("transfers total:", transfers.length);
 
-        const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
-        console.log("ncTransfers length:", ncTransfers.length);
-        if (ncTransfers.length === 0) continue;
 
-        // Helpful debug
-        console.log("sample nc transfer keys:", Object.keys(ncTransfers[0] || {}));
-        console.log("sample nc transfer:", ncTransfers[0]);
 
-        const tokenQty = sumTokenAmount(ncTransfers);
-        console.log("tokenQty:", tokenQty);
-        if (!Number.isFinite(tokenQty) || tokenQty <= 0) continue;
+      // Check token transfers
+      const transfers = Array.isArray(e?.tokenTransfers)
+        ? e.tokenTransfers
+        : [];
 
-        // Pick a wallet to display
-        const buyer =
-          ncTransfers.find((t) => t?.toUserAccount)?.toUserAccount ||
-          e?.feePayer ||
-          ncTransfers?.[0]?.toUserAccount ||
-          ncTransfers?.[0]?.fromUserAccount ||
-          "unknown";
+      // === FIX BUY vs SELL LOGIC ===
+const trader =
+  e.feePayer ||
+  e.tokenTransfers?.[0]?.toUserAccount ||
+  e.tokenTransfers?.[0]?.fromUserAccount;
 
-        const txLink = `https://solscan.io/tx/${sig}`;
-        const tweetText =
-          `🐾 NC BUY\n` +
-          `Amount: ${tokenQty.toLocaleString()} NC\n` +
-          `Wallet: ${shortAddr(buyer)}\n` +
-          `TX: ${txLink}`;
+if (!trader) {
+  console.log("No trader found, skipping. sig:", sig);
+  continue;
+}
 
-        console.log("ABOUT TO TWEET:\n", tweetText);
 
-        // Always alert even if tweeting fails
-        setAlert(`Ninja Cat Buy! (${tokenQty.toLocaleString()} NC)`);
+const ncTransfers = transfers.filter(t => t.mint === NC_MINT);
 
-        // Queue tweet so multiple buys do not explode rate limits
-        tweetQueue = tweetQueue
-          .then(async () => {
-            try {
-              const resp = await tweetWithImage(tweetText);
-              console.log("TWEET SENT OK:", resp?.data?.id);
-            } catch (err) {
-              console.log("TWEET FAIL message:", err?.message);
-              console.log("TWEET FAIL data:", err?.data);
-              console.log("TWEET FAIL full:", err);
-            }
-          })
-          .catch((e2) => {
-            console.log("tweetQueue error:", e2?.message || e2);
-          });
-      }
-    } catch (err) {
-      console.log("Webhook error message:", err?.message);
-      console.log("Webhook error data:", err?.data);
-      console.log("Webhook error full:", err);
+let ncIn = 0;
+let ncOut = 0;
+
+for (const t of ncTransfers) {
+  const amt = Number(t.tokenAmount || 0);
+  if (!amt) continue;
+
+  if (t.toUserAccount === trader) ncIn += amt;
+  if (t.fromUserAccount === trader) ncOut += amt;
+}
+
+const ncDelta = ncIn - ncOut;
+
+// 🔎 DEBUG – ADD THIS BLOCK
+console.log("sig:", sig);
+console.log("trader:", trader);
+console.log("transfers total:", transfers?.length || 0);
+console.log("ncTransfers length:", ncTransfers.length);
+
+if (ncTransfers[0]) {
+  console.log("sample nc transfer keys:", Object.keys(ncTransfers[0]));
+  console.log("sample nc transfer:", ncTransfers[0]);
+}
+
+console.log("ncIn:", ncIn, "ncOut:", ncOut, "ncDelta:", ncDelta);
+
+// 🚫 SKIP IF NO NET CHANGE
+if (ncDelta === 0) continue;
+
+
+const side = ncDelta > 0 ? "BUY" : "SELL";
+
+// 🚫 SKIP SELLS
+if (ncDelta <= 0) {
+  console.log("Skipping non-buy tx:", sig, "ncDelta:", ncDelta);
+  continue;
+}
+
+
+const tokenQty = Math.abs(ncDelta);
+
+
+const solSpent = null;
+
+const txLink = `https://solscan.io/tx/${sig}`;
+
+
+const tweet =
+  `🐾 NC ${side}\n` +
+  `Amount: ${tokenQty.toLocaleString()} NC\n` +
+  `Wallet: ${shortAddr(trader)}\n` +
+  `TX: ${txLink}`;
+
+console.log("ABOUT TO TWEET side:", side, "sig:", sig);
+console.log("tweet text:\n", tweet);
+
+
+const resp = await tweetWithImage(tweet, "./assets/buybot.png");
+console.log("TWEET SENT OK:", resp.data?.id);
+
+require("https")
+  .get("https://nc-buybot-production-2946.up.railway.app/fire-alert?msg=Ninja+Cat+Buy")
+  .on("error", () => {});
+
+
+
+
+console.log("TWEET SENT OK:", resp?.data?.id);
+
+console.log(`Tweeted ${side}:`, sig);
+
+
+
+
+ 
     }
-  })();
+
+    res.status(200).send("ok");
+ } catch (err) {
+  console.log("Webhook error message:", err?.message);
+  console.log("Webhook error data:", err?.data);
+  console.log("Webhook error full:", err);
+  res.status(500).send("error");
+}
+
 });
 
-// 026 Start
-const PORT = process.env.PORT || 8080;
+
+// serve files in /public
+app.use("/public", express.static(path.join(__dirname, "public")));
+
+// serve the overlay page
+app.get("/overlay", (req, res) => {
+  res.redirect("/public/overlay.html");
+});
+
+// ---- Ninja Cat Buy Alert state ----
+let lastAlert = null;
+
+// Trigger an alert (your buybot will call this)
+app.get("/fire-alert", (req, res) => {
+  lastAlert = {
+    msg: req.query.msg || "Ninja Cat Buy!",
+    ts: Date.now(),
+  };
+  res.status(200).send("ok");
+});
+
+// Overlay polls this endpoint
+app.get("/poll-alert", (req, res) => {
+  res.json(lastAlert);
+});
+
+
+// --------- Start ---------
+const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
