@@ -108,6 +108,7 @@ app.post("/helius", async (req, res) => {
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
 console.log("Helius webhook hit:", events.length);
+console.log("WEBHOOK FINGERPRINT: v2026-01-20-A");
 
 for (const e of events) {
   console.log("Event type:", e.type);
@@ -263,6 +264,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
