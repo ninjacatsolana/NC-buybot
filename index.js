@@ -110,6 +110,7 @@ const feePayer = e.feePayer;
 const feeDelta = feePayer ? (deltaByWallet.get(feePayer) || 0) : 0;
 
 console.log("feePayer:", feePayer, "feeDelta:", feeDelta);
+console.log("TYPE:", e.type, "SIG:", sig);
 
 // Only tweet buys when feePayer gained NC
 if (!feePayer || feeDelta <= 0) {
@@ -130,6 +131,7 @@ const ncDelta = feeDelta;
         `Amount: ${tokenQty.toLocaleString()} NC\n` +
         `Wallet: ${shortAddr(trader)}\n` +
         `TX: ${txLink}`;
+console.log("TWEETING BUY. feePayer:", feePayer, "feeDelta:", feeDelta);
 
       await tweetWithImage(tweet);
 
@@ -150,6 +152,7 @@ const ncDelta = feeDelta;
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
