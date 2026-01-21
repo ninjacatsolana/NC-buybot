@@ -105,21 +105,33 @@ for (const t of ncTransfers) {
   if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
 }
 
-// Decide based on the fee payer only
-const feePayer = e.feePayer;
-const feeDelta = feePayer ? (deltaByWallet.get(feePayer) || 0) : 0;
+// Decide BUY vs SELL using the pool direction (bulletproof)
+const poolDelta = deltaByWallet.get(NC_POOL) || 0;
+console.log("POOL:", NC_POOL, "poolDelta:", poolDelta);
 
-console.log("feePayer:", feePayer, "feeDelta:", feeDelta);
-console.log("TYPE:", e.type, "SIG:", sig);
-
-// Only tweet buys when feePayer gained NC
-if (!feePayer || feeDelta <= 0) {
-  console.log("Skipping SELL or non buy:", sig, "feeDelta:", feeDelta);
+// BUY = pool lost NC (negative). SELL = pool gained NC (positive).
+if (poolDelta >= 0) {
+  console.log("Skipping SELL (pool gained NC):", sig, "poolDelta:", poolDelta);
   continue;
 }
 
-const trader = feePayer;
-const ncDelta = feeDelta;
+// Pick the wallet with the biggest positive NC gain, excluding the pool
+let trader = null;
+let ncDelta = 0;
+
+for (const [wallet, delta] of deltaByWallet.entries()) {
+  if (!wallet || wallet === NC_POOL) continue;
+  if (delta > ncDelta) {
+    ncDelta = delta;
+    trader = wallet;
+  }
+}
+
+if (!trader || ncDelta <= 0) {
+  console.log("No positive buyer wallet found:", sig);
+  continue;
+}
+
 
 
 
@@ -152,6 +164,7 @@ console.log("TWEETING BUY. feePayer:", feePayer, "feeDelta:", feeDelta);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
