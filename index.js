@@ -296,6 +296,9 @@ app.get("/poll-alert", (req, res) => {
   res.json(lastAlert);
 });
 
+app.get("*", (req, res) => {
+  res.status(200).send("nc-buybot catchall " + req.path);
+});
 
 // --------- Start ---------
 const PORT = process.env.PORT || 3000;
@@ -303,6 +306,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
