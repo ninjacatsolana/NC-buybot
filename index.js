@@ -14,7 +14,8 @@ console.log("BOOT STAMP:", "v2026-01-20-A", "PID:", process.pid);
 console.log("BOOT: index.js loaded at", new Date().toISOString());
 console.log("BOOT FILE:", __filename);
 
-const app = express();   // ← THIS LINE MUST EXIST, ONCE
+const app = express();
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/health", (req, res) => {
   res.status(200).send("ok");
@@ -24,7 +25,14 @@ app.get("/", (req, res) => {
   res.status(200).send("nc-buybot alive");
 });
 
-app.use(express.json({ limit: "2mb" }));
+// DEPLOY PROOF ROUTE
+app.get("/version", (req, res) => {
+  res.status(200).json({
+    version: "FORCE-REDEPLOY-XYZ",
+    file: __filename,
+    ts: new Date().toISOString(),
+  });
+});
 
 
 
@@ -306,6 +314,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
