@@ -1,6 +1,7 @@
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
+
 process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err);
 });
@@ -10,13 +11,22 @@ process.on("unhandledRejection", (reason) => {
 });
 
 console.log("BOOT STAMP:", "v2026-01-20-A", "PID:", process.pid);
-
 console.log("BOOT: index.js loaded at", new Date().toISOString());
 console.log("BOOT FILE:", __filename);
 
 
-const app = express();
+
+// health must exist on the same app that listens
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
+app.get("/", (req, res) => {
+  res.status(200).send("nc-buybot alive");
+});
+
 app.use(express.json({ limit: "2mb" }));
+
 
 // ---------- Twitter ----------
 const twitter = new TwitterApi({
@@ -296,6 +306,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
