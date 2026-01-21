@@ -91,27 +91,37 @@ app.post("/helius", async (req, res) => {
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
       if (!ncTransfers.length) continue;
 
-      // Pick the receiving wallet for NC in this tx
-      const trader = e.feePayer;
-      if (!trader) continue;
+// Compute net NC change per wallet
+const deltaByWallet = new Map();
 
-      // Net NC in to trader
-      let ncIn = 0;
-      let ncOut = 0;
+for (const t of ncTransfers) {
+  const amt = Number(t.tokenAmount || 0);
+  if (!amt) continue;
 
-      for (const t of ncTransfers) {
-        const amt = Number(t?.tokenAmount || 0);
-        if (!amt) continue;
-        if (t.toUserAccount === trader) ncIn += amt;
-        if (t.fromUserAccount === trader) ncOut += amt;
-      }
+  const to = t.toUserAccount;
+  const from = t.fromUserAccount;
 
-      const ncDelta = ncIn - ncOut;
+  if (to) deltaByWallet.set(to, (deltaByWallet.get(to) || 0) + amt);
+  if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
+}
 
-      if (ncDelta <= 0) {
-  console.log("Skipping SELL or no change:", sig, "ncDelta:", ncDelta, "trader:", trader);
+// Pick the wallet with the biggest positive net NC delta
+let trader = null;
+let ncDelta = 0;
+
+for (const [wallet, delta] of deltaByWallet.entries()) {
+  if (delta > ncDelta) {
+    ncDelta = delta;
+    trader = wallet;
+  }
+}
+
+// Only tweet buys (must have a positive net receiver)
+if (!trader || ncDelta <= 0) {
+  console.log("Skipping non buy:", sig, "bestDelta:", ncDelta);
   continue;
 }
+
 
 
       const tokenQty = Math.abs(ncDelta);
@@ -142,4 +152,5 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
