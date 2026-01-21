@@ -14,9 +14,8 @@ console.log("BOOT STAMP:", "v2026-01-20-A", "PID:", process.pid);
 console.log("BOOT: index.js loaded at", new Date().toISOString());
 console.log("BOOT FILE:", __filename);
 
-const app = express();
+const app = express();   // ← THIS LINE MUST EXIST, ONCE
 
-// These must be on the SAME app that listens
 app.get("/health", (req, res) => {
   res.status(200).send("ok");
 });
@@ -26,6 +25,7 @@ app.get("/", (req, res) => {
 });
 
 app.use(express.json({ limit: "2mb" }));
+
 
 
 
@@ -307,6 +307,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
