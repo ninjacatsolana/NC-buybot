@@ -91,42 +91,28 @@ app.post("/helius", async (req, res) => {
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
       if (!ncTransfers.length) continue;
 
-// Compute net NC change per wallet
-const deltaByWallet = new Map();
+// Only tweet BUYS by detecting NC leaving the pool token account
+const poolTransfers = ncTransfers.filter(t => t.fromTokenAccount === NC_POOL);
 
-for (const t of ncTransfers) {
+if (!poolTransfers.length) {
+  console.log("Skipping non buy, no transfer FROM pool:", sig);
+  continue;
+}
+
+// Buyer is the receiver of the pool's NC
+const trader = poolTransfers[0].toUserAccount;
+
+// Sum NC sent from pool to that buyer
+let ncDelta = 0;
+for (const t of poolTransfers) {
   const amt = Number(t.tokenAmount || 0);
   if (!amt) continue;
-
-  const to = t.toUserAccount;
-  const from = t.fromUserAccount;
-
-  if (to) deltaByWallet.set(to, (deltaByWallet.get(to) || 0) + amt);
-  if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
+  if (t.toUserAccount === trader) ncDelta += amt;
 }
 
-// Build SOL delta map (lamports) from nativeBalanceChanges
-const solDeltaByWallet = new Map();
-const native = Array.isArray(e.nativeBalanceChanges) ? e.nativeBalanceChanges : [];
-
-for (const c of native) {
-  const w = c.account;
-  const lamports = Number(c.amount || 0);
-  if (!w || !lamports) continue;
-  solDeltaByWallet.set(w, (solDeltaByWallet.get(w) || 0) + lamports);
-}
-
-// Pick the wallet with the biggest positive NC delta, excluding the pool
-let trader = null;
-let ncDelta = 0;
-
-for (const [wallet, delta] of deltaByWallet.entries()) {
-  if (!wallet) continue;
-  if (wallet === NC_POOL) continue; // never treat pool as buyer
-  if (delta > ncDelta) {
-    ncDelta = delta;
-    trader = wallet;
-  }
+if (!trader || ncDelta <= 0) {
+  console.log("Skipping non buy, bad trader or amount:", sig, "trader:", trader, "ncDelta:", ncDelta);
+  continue;
 }
 
 // Must have a real positive NC receiver
@@ -195,6 +181,7 @@ console.log("TWEETING BUY. feePayer:", feePayer, "feeDelta:", feeDelta);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
