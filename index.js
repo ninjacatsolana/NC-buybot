@@ -1,9 +1,19 @@
 const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("UNHANDLED REJECTION:", reason);
+});
+
+console.log("BOOT STAMP:", "v2026-01-20-A", "PID:", process.pid);
+
 console.log("BOOT: index.js loaded at", new Date().toISOString());
 console.log("BOOT FILE:", __filename);
-console.log("ROUTE REGISTERED: GET /version");
+
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -286,6 +296,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
