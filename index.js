@@ -105,15 +105,46 @@ for (const t of ncTransfers) {
   if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
 }
 
-// Decide BUY vs SELL using the pool direction (bulletproof)
-const poolDelta = deltaByWallet.get(NC_POOL) || 0;
-console.log("POOL:", NC_POOL, "poolDelta:", poolDelta);
+// Build SOL delta map (lamports) from nativeBalanceChanges
+const solDeltaByWallet = new Map();
+const native = Array.isArray(e.nativeBalanceChanges) ? e.nativeBalanceChanges : [];
 
-// BUY = pool lost NC (negative). SELL = pool gained NC (positive).
-if (poolDelta >= 0) {
-  console.log("Skipping SELL (pool gained NC):", sig, "poolDelta:", poolDelta);
+for (const c of native) {
+  const w = c.account;
+  const lamports = Number(c.amount || 0);
+  if (!w || !lamports) continue;
+  solDeltaByWallet.set(w, (solDeltaByWallet.get(w) || 0) + lamports);
+}
+
+// Pick the wallet with the biggest positive NC delta, excluding the pool
+let trader = null;
+let ncDelta = 0;
+
+for (const [wallet, delta] of deltaByWallet.entries()) {
+  if (!wallet) continue;
+  if (wallet === NC_POOL) continue; // never treat pool as buyer
+  if (delta > ncDelta) {
+    ncDelta = delta;
+    trader = wallet;
+  }
+}
+
+// Must have a real positive NC receiver
+if (!trader || ncDelta <= 0) {
+  console.log("Skipping non-buy (no positive NC receiver):", sig, "ncDelta:", ncDelta);
   continue;
 }
+
+// Buyer must spend SOL (negative lamports change)
+const traderSolDelta = solDeltaByWallet.get(trader) || 0;
+console.log("BUY CHECK:", { trader, ncDelta, traderSolDelta });
+
+if (traderSolDelta >= 0) {
+  console.log("Skipping (receiver did not spend SOL):", sig, "traderSolDelta:", traderSolDelta);
+  continue;
+}
+
+
 
 // Pick the wallet with the biggest positive NC gain, excluding the pool
 let trader = null;
@@ -164,6 +195,7 @@ console.log("TWEETING BUY. feePayer:", feePayer, "feeDelta:", feeDelta);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
