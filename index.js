@@ -3,6 +3,7 @@ const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
 console.log("BOOT: index.js loaded at", new Date().toISOString());
 console.log("BOOT FILE:", __filename);
+console.log("ROUTE REGISTERED: GET /version");
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -285,6 +286,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
