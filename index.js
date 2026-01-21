@@ -105,22 +105,20 @@ for (const t of ncTransfers) {
   if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
 }
 
-// Pick the wallet with the biggest positive net NC delta
-let trader = null;
-let ncDelta = 0;
+// Decide based on the fee payer only
+const feePayer = e.feePayer;
+const feeDelta = feePayer ? (deltaByWallet.get(feePayer) || 0) : 0;
 
-for (const [wallet, delta] of deltaByWallet.entries()) {
-  if (delta > ncDelta) {
-    ncDelta = delta;
-    trader = wallet;
-  }
-}
+console.log("feePayer:", feePayer, "feeDelta:", feeDelta);
 
-// Only tweet buys (must have a positive net receiver)
-if (!trader || ncDelta <= 0) {
-  console.log("Skipping non buy:", sig, "bestDelta:", ncDelta);
+// Only tweet buys when feePayer gained NC
+if (!feePayer || feeDelta <= 0) {
+  console.log("Skipping SELL or non buy:", sig, "feeDelta:", feeDelta);
   continue;
 }
+
+const trader = feePayer;
+const ncDelta = feeDelta;
 
 
 
@@ -152,5 +150,6 @@ if (!trader || ncDelta <= 0) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
