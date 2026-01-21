@@ -132,22 +132,42 @@ if (traderSolDelta >= 0) {
 
 
 
-// Pick the wallet with the biggest positive NC gain, excluding the pool
+// Pick the most likely BUYER: net NC positive AND net SOL negative (spent SOL)
+const solDeltaByWallet = new Map();
+const native = Array.isArray(e.nativeBalanceChanges) ? e.nativeBalanceChanges : [];
+
+for (const c of native) {
+  const w = c.account;
+  const lamports = Number(c.amount || 0);
+  if (!w || !lamports) continue;
+  solDeltaByWallet.set(w, (solDeltaByWallet.get(w) || 0) + lamports);
+}
+
 let trader = null;
 let ncDelta = 0;
 
 for (const [wallet, delta] of deltaByWallet.entries()) {
-  if (!wallet || wallet === NC_POOL) continue;
-  if (delta > ncDelta) {
-    ncDelta = delta;
-    trader = wallet;
+  if (!wallet) continue;
+  if (wallet === NC_POOL) continue; // never treat pool as buyer
+
+  const solDelta = solDeltaByWallet.get(wallet) || 0;
+
+  // BUY condition: gained NC, and spent SOL
+  if (delta > 0 && solDelta < 0) {
+    if (delta > ncDelta) {
+      ncDelta = delta;
+      trader = wallet;
+    }
   }
 }
 
 if (!trader || ncDelta <= 0) {
-  console.log("No positive buyer wallet found:", sig);
+  console.log("Skipping non-buy:", sig, "bestTrader:", trader, "ncDelta:", ncDelta);
   continue;
 }
+
+console.log("BUY CANDIDATE:", trader, "ncDelta:", ncDelta, "solDelta:", (solDeltaByWallet.get(trader) || 0));
+
 
 
 
@@ -160,7 +180,8 @@ if (!trader || ncDelta <= 0) {
         `Amount: ${tokenQty.toLocaleString()} NC\n` +
         `Wallet: ${shortAddr(trader)}\n` +
         `TX: ${txLink}`;
-console.log("TWEETING BUY. feePayer:", feePayer, "feeDelta:", feeDelta);
+console.log("TWEETING BUY. trader:", trader, "ncDelta:", ncDelta, "solDelta:", (solDeltaByWallet.get(trader) || 0));
+
 
       await tweetWithImage(tweet);
 
@@ -181,6 +202,7 @@ console.log("TWEETING BUY. feePayer:", feePayer, "feeDelta:", feeDelta);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
