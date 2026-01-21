@@ -92,7 +92,7 @@ app.post("/helius", async (req, res) => {
       if (!ncTransfers.length) continue;
 
       // Pick the receiving wallet for NC in this tx
-      const trader = ncTransfers[0]?.toUserAccount;
+      const trader = e.feePayer;
       if (!trader) continue;
 
       // Net NC in to trader
@@ -108,8 +108,11 @@ app.post("/helius", async (req, res) => {
 
       const ncDelta = ncIn - ncOut;
 
-      // Only tweet buys
-      if (ncDelta <= 0) continue;
+      if (ncDelta <= 0) {
+  console.log("Skipping SELL or no change:", sig, "ncDelta:", ncDelta, "trader:", trader);
+  continue;
+}
+
 
       const tokenQty = Math.abs(ncDelta);
       const txLink = `https://solscan.io/tx/${sig}`;
@@ -139,3 +142,4 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
