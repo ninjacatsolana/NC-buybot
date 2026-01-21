@@ -86,6 +86,17 @@ app.get("/version", (req, res) => {
     ts: new Date().toISOString(),
   });
 });
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
+app.get("/version", (req, res) => {
+  res.status(200).json({
+    version: "v2026-01-20-A",
+    file: __filename,
+    ts: new Date().toISOString(),
+  });
+});
 
 // ---------- Test tweet ----------
 app.get("/test-tweet", async (req, res) => {
@@ -274,6 +285,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("BOOT: listening", { PORT, node: process.version });
 });
+
 
 
 
