@@ -90,7 +90,64 @@ app.post("/helius", async (req, res) => {
       const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
       if (!ncTransfers.length) continue;
+// Build net NC delta per wallet (positive = gained NC, negative = lost NC)
+const deltaByWallet = new Map();
 
+for (const t of ncTransfers) {
+  const amt = Number(t.tokenAmount || 0);
+  if (!amt) continue;
+
+  const from = t.fromUserAccount || t.fromWallet || null;
+  const to = t.toUserAccount || t.toWallet || null;
+
+  if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
+  if (to)   deltaByWallet.set(to,   (deltaByWallet.get(to) || 0) + amt);
+}
+
+// Build net SOL (lamports) delta per wallet (negative = spent SOL, positive = received SOL)
+const solDeltaByWallet = new Map();
+const native = Array.isArray(e.nativeBalanceChanges) ? e.nativeBalanceChanges : [];
+
+for (const c of native) {
+  const w = c.account;
+  const lamports = Number(c.amount || 0);
+  if (!w || !lamports) continue;
+  solDeltaByWallet.set(w, (solDeltaByWallet.get(w) || 0) + lamports);
+}
+
+// Pick best BUY candidate: gained NC AND spent SOL
+let trader = null;
+let ncDelta = 0;
+
+for (const [wallet, delta] of deltaByWallet.entries()) {
+  if (!wallet) continue;
+
+  const solDelta = solDeltaByWallet.get(wallet) || 0;
+
+  // BUY condition:
+  // - gained NC (delta > 0)
+  // - spent SOL (solDelta < 0)
+  if (delta > 0 && solDelta < 0) {
+    if (delta > ncDelta) {
+      ncDelta = delta;
+      trader = wallet;
+    }
+  }
+}
+
+if (!trader || ncDelta <= 0) {
+  console.log("Skipping non-buy:", sig, { trader, ncDelta });
+  continue;
+}
+
+// Extra safety: if trader gained SOL, it’s probably a sell or weird routing
+const traderSolDelta = solDeltaByWallet.get(trader) || 0;
+if (traderSolDelta >= 0) {
+  console.log("Skipping (candidate did not spend SOL):", sig, { trader, ncDelta, traderSolDelta });
+  continue;
+}
+
+console.log("BUY CONFIRMED:", { sig, trader, ncDelta, traderSolDelta });
 // Only tweet BUYS by detecting NC leaving the pool token account
 const poolTransfers = ncTransfers.filter(t => t.fromTokenAccount === NC_POOL);
 
@@ -226,6 +283,7 @@ console.log("TWEETING BUY. trader:", trader, "ncDelta:", ncDelta, "solDelta:", (
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
