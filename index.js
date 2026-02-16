@@ -75,28 +75,30 @@ app.get("/fire-alert", (req, res) => {
     msg: req.query.msg || "Ninja Cat Buy!",
     ts: Date.now(),
   };
+  console.log("FIRE ALERT SET:", lastAlert);
   res.status(200).send("ok");
 });
 
 
+
 app.get("/poll-alert", (req, res) => {
   const lastId = req.query.lastId || "";
-  if (!lastAlert) return res.json(null);
-  if (lastAlert.id === lastId) return res.json(null);
-  return res.json(lastAlert);
+
+  // This proves which handler responded
+  const stamp = {
+    handler: "poll-alert-v3",
+    file: "index.js",
+    serverTime: Date.now(),
+  };
+
+  if (!lastAlert) return res.json({ ...stamp, data: null });
+
+  // If lastAlert has no id, we want to SEE that immediately
+  if (lastAlert.id === lastId) return res.json({ ...stamp, data: null });
+
+  return res.json({ ...stamp, data: lastAlert });
 });
 
-// Test tweet
-app.get("/test-tweet", async (req, res) => {
-  try {
-    const msg = `🐾 NC Buybot test ${new Date().toISOString()}`;
-    const resp = await tweetWithImage(msg);
-    res.status(200).send(`Tweet sent ${resp.data?.id || ""}`);
-  } catch (err) {
-    console.log("TEST TWEET ERROR:", err?.message, err?.data || "");
-    res.status(500).send("Tweet failed");
-  }
-});
 
 // Helius webhook
 app.post("/helius", async (req, res) => {
@@ -215,6 +217,7 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
