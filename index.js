@@ -229,8 +229,32 @@ app.post("/helius", async (req, res) => {
   }
 });
 
+// --- DEBUG ROUTES (temp) ---
+app.get("/routes", (req, res) => {
+  const out = [];
+  app._router.stack.forEach((layer) => {
+    if (layer.route && layer.route.path) {
+      const methods = Object.keys(layer.route.methods).join(",").toUpperCase();
+      out.push(`${methods} ${layer.route.path}`);
+    }
+  });
+  res.json(out);
+});
+
+app.get("/poll-alert-v3", (req, res) => {
+  res.json({
+    ok: true,
+    route: "poll-alert-v3",
+    file: __filename,
+    ts: Date.now()
+  });
+});
+
+// --- start server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
+
 
 
 
