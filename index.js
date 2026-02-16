@@ -59,7 +59,6 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 // Buy alert endpoints for overlay polling
 let lastAlert = null;
 
-// Creates a new alert with a unique id each time
 app.get("/fire-alert", (req, res) => {
   lastAlert = {
     id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
@@ -68,6 +67,14 @@ app.get("/fire-alert", (req, res) => {
   };
   res.status(200).send("ok");
 });
+
+app.get("/poll-alert", (req, res) => {
+  const lastId = req.query.lastId || "";
+  if (!lastAlert) return res.json(null);
+  if (lastAlert.id === lastId) return res.json(null);
+  return res.json(lastAlert);
+});
+
 
 // Client passes ?lastId=..., if same id then return null
 app.get("/poll-alert", (req, res) => {
@@ -206,3 +213,4 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
