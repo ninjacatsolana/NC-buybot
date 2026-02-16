@@ -81,10 +81,13 @@ app.get("/fire-alert", (req, res) => {
 
 app.get("/version", (req, res) => {
   res.json({
-    version: "buybot-v3-id-ROUTES-TEST-1",
-    ts: new Date().toISOString(),
+    version: "DEPLOY-CHECK-" + Math.random().toString(16).slice(2),
+    commitHint: "added poll-alert-v3 route",
+    file: __filename,
+    now: new Date().toISOString(),
   });
 });
+
 
 
   if (!lastAlert) return res.json({ ...stamp, lastAlert: null });
@@ -228,6 +231,7 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
