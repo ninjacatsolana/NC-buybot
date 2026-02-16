@@ -79,6 +79,18 @@ app.get("/fire-alert", (req, res) => {
   res.status(200).send("ok");
 });
 
+app.get("/poll-alert-v3", (req, res) => {
+  const lastId = req.query.lastId || "";
+  const stamp = {
+    handler: "poll-alert-v3",
+    file: "/app/index.js",
+    serverTime: Date.now(),
+  };
+
+  if (!lastAlert) return res.json({ ...stamp, lastAlert: null });
+  if (lastAlert.id === lastId) return res.json({ ...stamp, lastAlert: null });
+  return res.json({ ...stamp, lastAlert });
+});
 
 
 app.get("/poll-alert", (req, res) => {
@@ -216,6 +228,7 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
