@@ -79,13 +79,13 @@ app.get("/fire-alert", (req, res) => {
   res.status(200).send("ok");
 });
 
-app.get("/poll-alert-v3", (req, res) => {
-  const lastId = req.query.lastId || "";
-  const stamp = {
-    handler: "poll-alert-v3",
-    file: "/app/index.js",
-    serverTime: Date.now(),
-  };
+app.get("/version", (req, res) => {
+  res.json({
+    version: "buybot-v3-id-ROUTES-TEST-1",
+    ts: new Date().toISOString(),
+  });
+});
+
 
   if (!lastAlert) return res.json({ ...stamp, lastAlert: null });
   if (lastAlert.id === lastId) return res.json({ ...stamp, lastAlert: null });
@@ -228,6 +228,7 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
