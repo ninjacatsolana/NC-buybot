@@ -1,100 +1,66 @@
-<!-- overlay v2 -->
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title></title>
+<script>
+  const alertEl = document.getElementById("alert");
+  const imgEl = document.getElementById("img");
+  const sound = document.getElementById("sound");
 
-  <style>
-    body { margin:0; background:transparent; overflow:hidden; font-family: Arial, sans-serif; }
+  const POLL_MS = 1000;
+  const LAST_ID_KEY = "nc_last_alert_id";
 
-    #alert {
-      position:absolute;
-      left:50%;
-      top:35%;
-      transform:translate(-50%, -50%);
-      display:none;
-      text-align:center;
-      color:white;
-      text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
-    }
+  let audioUnlocked = false;
 
-    #img { width:420px; height:auto; border-radius:16px; display:block; }
-    #text { margin-top:10px; font-size:44px; }
-  </style>
-</head>
+  function unlockOnce() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
 
-<body>
-  <div id="alert">
-    <img id="img" src="/public/alert.png" style="width:420px;border-radius:16px;display:block;">
-
-    
-    <audio id="sound" src="/public/Alert.mp3" preload="auto"></audio>
-  </div>
-
-  <script>
-    const alertEl = document.getElementById("alert");
-   const imgEl = document.getElementById("img");
-
-    const sound = document.getElementById("sound");
-   
-
-    let lastTs = 0;
-    let audioUnlocked = false;
-
-    function unlockOnce() {
-      if (audioUnlocked) return;
-      audioUnlocked = true;
-
-      sound.volume = 0;
-      sound.play().then(() => {
-        sound.pause();
-        sound.currentTime = 0;
-        sound.volume = 1;
-      }).catch(() => {
-        sound.volume = 1;
-      });
-
-      document.removeEventListener("click", unlockOnce);
-    }
-
-    document.addEventListener("click", unlockOnce);
-
-    function triggerAlert(message) {
-      
-      alertEl.style.display = "block";
-
+    // Prime audio so browsers allow playback later
+    sound.volume = 0;
+    sound.play().then(() => {
+      sound.pause();
       sound.currentTime = 0;
-      sound.play().catch(() => {});
+      sound.volume = 1;
+    }).catch(() => {
+      sound.volume = 1;
+    });
 
-      setTimeout(() => {
-        alertEl.style.display = "none";
-      }, 5000);
-    }
+    document.removeEventListener("click", unlockOnce);
+  }
 
-    async function poll() {
-      try {
-        const r = await fetch("/poll-alert", { cache: "no-store" });
-        const data = await r.json();
+  document.addEventListener("click", unlockOnce);
 
-        if (data && data.ts && data.ts > lastTs) {
-          lastTs = data.ts;
+  function triggerAlert(message) {
+    alertEl.style.display = "block";
 
-          // reload image each time in case of caching
-         imgEl.src = "/public/alert.png?ts=" + Date.now();
+    // cache bust the image so it refreshes cleanly
+    imgEl.src = "/public/alert.png?ts=" + Date.now();
 
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
 
+    setTimeout(() => {
+      alertEl.style.display = "none";
+    }, 5000);
+  }
 
-          triggerAlert(data.msg);
-        }
-      } catch (e) {
-        // ignore
+  async function poll() {
+    try {
+      const lastId = localStorage.getItem(LAST_ID_KEY) || "";
+      const url = `/poll-alert?lastId=${encodeURIComponent(lastId)}`;
+
+      const r = await fetch(url, { cache: "no-store" });
+      const data = await r.json();
+
+      // Server returns null if nothing new
+      if (data && data.id) {
+        // Save immediately so reloads do not replay
+        localStorage.setItem(LAST_ID_KEY, data.id);
+
+        triggerAlert(data.msg || "Ninja Cat Buy!");
       }
+    } catch (e) {
+      // ignore
     }
+    setTimeout(poll, POLL_MS);
+  }
 
-    setInterval(poll, 1000);
-  </script>
-</body>
-</html>
-
-
+  poll();
+</script>
