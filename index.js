@@ -46,12 +46,17 @@ async function tweetWithImage(text) {
 }
 
 // Health
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
 app.get("/version", (req, res) => {
   res.json({
     version: "buybot-v3-id",
     time: Date.now(),
   });
 });
+
 
 
 // Overlay URL for Streamlabs browser source
@@ -217,5 +222,6 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
