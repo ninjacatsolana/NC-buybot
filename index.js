@@ -52,10 +52,16 @@ app.get("/health", (req, res) => {
 
 app.get("/version", (req, res) => {
   res.json({
-    version: "buybot-v3-id",
-    time: Date.now(),
+    file: __filename,
+    now: new Date().toISOString(),
+    railwayCommit:
+      process.env.RAILWAY_GIT_COMMIT_SHA ||
+      process.env.RAILWAY_GIT_COMMIT ||
+      null,
+    node: process.version,
   });
 });
+
 
 
 
@@ -253,6 +259,7 @@ app.get("/poll-alert-v3", (req, res) => {
 // --- start server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
