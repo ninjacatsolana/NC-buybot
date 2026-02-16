@@ -2,31 +2,31 @@ const express = require("express");
 const { TwitterApi } = require("twitter-api-v2");
 require("dotenv").config();
 
+const fs = require("fs");
+const path = require("path");
+const https = require("https");
+
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
-// Twitter client
+// ---- CONFIG ----
+const NC_MINT = "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod";
+
+// Start numbers (tweak)
+const MIN_SOL_SPEND_LAMPORTS = 0.002 * 1e9; // 0.002 SOL
+const MIN_NC_AMOUNT = 50; // 50 NC
+
+// Seen signatures so we don’t double-tweet
+const seen = new Set();
+const SEEN_MAX = 5000;
+
+// ---- TWITTER ----
 const twitter = new TwitterApi({
   appKey: process.env.X_API_KEY,
   appSecret: process.env.X_API_SECRET,
   accessToken: process.env.X_ACCESS_TOKEN,
   accessSecret: process.env.X_ACCESS_SECRET,
 });
-
-// Ninja Cat config
-const NC_MINT = "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod";
-
-// START NUMBERS (tweak these)
-const MIN_SOL_SPEND_LAMPORTS = 0.002 * 1e9; // 0.002 SOL
-const MIN_NC_AMOUNT = 50; // 50 NC
-
-// Helpers
-const fs = require("fs");
-const path = require("path");
-
-// Track seen signatures so we do not double tweet
-const seen = new Set();
-const SEEN_MAX = 5000;
 
 function shortAddr(a) {
   if (!a || typeof a !== "string") return "unknown";
@@ -45,34 +45,26 @@ async function tweetWithImage(text) {
   });
 }
 
-// Health
-app.get("/health", (req, res) => {
-  res.status(200).send("ok");
-});
+// ---- BASIC ROUTES ----
+app.get("/health", (req, res) => res.status(200).send("ok"));
 
 app.get("/version", (req, res) => {
   res.json({
     file: __filename,
     now: new Date().toISOString(),
+    node: process.version,
     railwayCommit:
       process.env.RAILWAY_GIT_COMMIT_SHA ||
       process.env.RAILWAY_GIT_COMMIT ||
       null,
-    node: process.version,
   });
 });
 
-
-
-
-// Overlay URL for Streamlabs browser source
-app.get("/overlay", (req, res) => {
-  res.redirect("/public/overlay.html");
-});
+// Overlay for Streamlabs
+app.get("/overlay", (req, res) => res.redirect("/public/overlay.html"));
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-// Buy alert endpoints for overlay polling
-// Buy alert endpoints for overlay polling (no replay on scene reload)
+// ---- ALERT STATE (NO REPLAY) ----
 let lastAlert = null;
 
 app.get("/fire-alert", (req, res) => {
@@ -81,46 +73,29 @@ app.get("/fire-alert", (req, res) => {
     msg: req.query.msg || "Ninja Cat Buy!",
     ts: Date.now(),
   };
-  console.log("FIRE ALERT SET:", lastAlert);
   res.status(200).send("ok");
 });
 
-app.get("/version", (req, res) => {
-  res.json({
-    version: "DEPLOY-CHECK-" + Math.random().toString(16).slice(2),
-    commitHint: "added poll-alert-v3 route",
-    file: __filename,
-    now: new Date().toISOString(),
-  });
-});
-
-
-
-  if (!lastAlert) return res.json({ ...stamp, lastAlert: null });
-  if (lastAlert.id === lastId) return res.json({ ...stamp, lastAlert: null });
-  return res.json({ ...stamp, lastAlert });
-});
-
-
+// Client passes ?lastId=...
 app.get("/poll-alert", (req, res) => {
   const lastId = req.query.lastId || "";
-
-  const stamp = {
-    handler: "poll-alert-v3",
-    file: "/app/index.js",
-    serverTime: Date.now(),
-  };
-
-  if (!lastAlert) return res.json({ ...stamp, lastAlert: null });
-
-  if (lastAlert.id === lastId) return res.json({ ...stamp, lastAlert: null });
-
-  return res.json({ ...stamp, lastAlert });
+  if (!lastAlert) return res.json(null);
+  if (lastAlert.id === lastId) return res.json(null);
+  return res.json(lastAlert);
 });
 
+// Optional: manual test alert (no tweet)
+app.get("/test-alert", (req, res) => {
+  const msg = req.query.msg || "Test Alert";
+  lastAlert = {
+    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    msg,
+    ts: Date.now(),
+  };
+  res.status(200).send("ok");
+});
 
-
-// Helius webhook
+// ---- HELIUS WEBHOOK ----
 app.post("/helius", async (req, res) => {
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
@@ -138,12 +113,8 @@ app.post("/helius", async (req, res) => {
 
       if (e?.type === "NFT_SALE") continue;
 
-      // Strong filter: only process swaps
-      // If you find your buys are labeled differently, tell me what e.type shows in logs.
-      if (e?.type && e.type !== "SWAP") {
-        console.log("Skipping non-swap type:", e.type, sig);
-        continue;
-      }
+      // Keep this strict for now (reduces transfers)
+      if (e?.type && e.type !== "SWAP") continue;
 
       const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
@@ -164,10 +135,7 @@ app.post("/helius", async (req, res) => {
 
       // Net SOL delta per wallet (lamports)
       const solDeltaByWallet = new Map();
-      const native = Array.isArray(e?.nativeBalanceChanges)
-        ? e.nativeBalanceChanges
-        : [];
-
+      const native = Array.isArray(e?.nativeBalanceChanges) ? e.nativeBalanceChanges : [];
       for (const c of native) {
         const w = c.account;
         const lamports = Number(c.amount || 0);
@@ -181,31 +149,19 @@ app.post("/helius", async (req, res) => {
 
       for (const [wallet, delta] of deltaByWallet.entries()) {
         const solDelta = solDeltaByWallet.get(wallet) || 0;
-
-        if (delta > 0 && solDelta < 0) {
-          if (delta > ncDelta) {
-            ncDelta = delta;
-            trader = wallet;
-          }
+        if (delta > 0 && solDelta < 0 && delta > ncDelta) {
+          ncDelta = delta;
+          trader = wallet;
         }
       }
 
-      if (!trader || ncDelta <= 0) {
-        console.log("Skipping, no buy candidate:", sig);
-        continue;
-      }
+      if (!trader || ncDelta <= 0) continue;
 
       const traderSolDelta = solDeltaByWallet.get(trader) || 0;
 
       // Threshold filters
-      if (Math.abs(traderSolDelta) < MIN_SOL_SPEND_LAMPORTS) {
-        console.log("Skipping small SOL spend:", sig, traderSolDelta);
-        continue;
-      }
-      if (ncDelta < MIN_NC_AMOUNT) {
-        console.log("Skipping tiny NC amount:", sig, ncDelta);
-        continue;
-      }
+      if (Math.abs(traderSolDelta) < MIN_SOL_SPEND_LAMPORTS) continue;
+      if (ncDelta < MIN_NC_AMOUNT) continue;
 
       console.log("BUY CONFIRMED:", { sig, trader, ncDelta, traderSolDelta });
 
@@ -218,13 +174,10 @@ app.post("/helius", async (req, res) => {
 
       await tweetWithImage(tweet);
 
-      // Trigger overlay alert
-      const https = require("https");
+      // Trigger overlay alert (same server)
       const msg = encodeURIComponent("Ninja Cat Buy");
       https
-        .get(
-          `https://nc-buybot-production-2946.up.railway.app/fire-alert?msg=${msg}`
-        )
+        .get(`https://nc-buybot-production-2946.up.railway.app/fire-alert?msg=${msg}`)
         .on("error", () => {});
     }
 
@@ -235,40 +188,5 @@ app.post("/helius", async (req, res) => {
   }
 });
 
-// --- DEBUG ROUTES (temp) ---
-app.get("/routes", (req, res) => {
-  const out = [];
-  app._router.stack.forEach((layer) => {
-    if (layer.route && layer.route.path) {
-      const methods = Object.keys(layer.route.methods).join(",").toUpperCase();
-      out.push(`${methods} ${layer.route.path}`);
-    }
-  });
-  res.json(out);
-});
-
-app.get("/poll-alert-v3", (req, res) => {
-  res.json({
-    ok: true,
-    route: "poll-alert-v3",
-    file: __filename,
-    ts: Date.now()
-  });
-});
-
-// --- start server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
-
-
-
-
-
-
-
-
-
-
-
-
-
