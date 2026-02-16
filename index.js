@@ -118,4 +118,75 @@ app.post("/helius", async (req, res) => {
 
       const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
       const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
-      if
+      if (!ncTransfers.length) continue;
+
+      // Net NC delta per wallet
+      const deltaByWallet = new Map();
+      for (const t of ncTransfers) {
+        const amt = Number(t.tokenAmount || 0);
+        if (!amt) continue;
+
+        const from = t.fromUserAccount || t.fromWallet || null;
+        const to = t.toUserAccount || t.toWallet || null;
+
+        if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
+        if (to) deltaByWallet.set(to, (deltaByWallet.get(to) || 0) + amt);
+      }
+
+      // Net SOL delta per wallet (lamports)
+      const solDeltaByWallet = new Map();
+      const native = Array.isArray(e?.nativeBalanceChanges) ? e.nativeBalanceChanges : [];
+      for (const c of native) {
+        const w = c.account;
+        const lamports = Number(c.amount || 0);
+        if (!w || !lamports) continue;
+        solDeltaByWallet.set(w, (solDeltaByWallet.get(w) || 0) + lamports);
+      }
+
+      // Choose buyer: gained NC AND spent SOL
+      let trader = null;
+      let ncDelta = 0;
+
+      for (const [wallet, delta] of deltaByWallet.entries()) {
+        const solDelta = solDeltaByWallet.get(wallet) || 0;
+        if (delta > 0 && solDelta < 0 && delta > ncDelta) {
+          ncDelta = delta;
+          trader = wallet;
+        }
+      }
+
+      if (!trader || ncDelta <= 0) continue;
+
+      const traderSolDelta = solDeltaByWallet.get(trader) || 0;
+
+      // Filters
+      if (Math.abs(traderSolDelta) < MIN_SOL_SPEND_LAMPORTS) continue;
+      if (ncDelta < MIN_NC_AMOUNT) continue;
+
+      console.log("BUY CONFIRMED:", { sig, trader, ncDelta, traderSolDelta });
+
+      const txLink = `https://solscan.io/tx/${sig}`;
+      const tweet =
+        `🐾 NC BUY\n` +
+        `Amount: ${ncDelta.toLocaleString()} NC\n` +
+        `Wallet: ${shortAddr(trader)}\n` +
+        `TX: ${txLink}`;
+
+      await tweetWithImage(tweet);
+
+      // Fire overlay alert (this same app)
+      const msg = encodeURIComponent("Ninja Cat Buy");
+      https
+        .get(`https://nc-buybot-production-2946.up.railway.app/fire-alert?msg=${msg}`)
+        .on("error", () => {});
+    }
+
+    res.status(200).send("ok");
+  } catch (err) {
+    console.log("Webhook error:", err?.message, err?.data || "");
+    res.status(500).send("error");
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("listening on", PORT));
