@@ -84,20 +84,19 @@ app.get("/fire-alert", (req, res) => {
 app.get("/poll-alert", (req, res) => {
   const lastId = req.query.lastId || "";
 
-  // This proves which handler responded
   const stamp = {
     handler: "poll-alert-v3",
-    file: "index.js",
+    file: "/app/index.js",
     serverTime: Date.now(),
   };
 
-  if (!lastAlert) return res.json({ ...stamp, data: null });
+  if (!lastAlert) return res.json({ ...stamp, lastAlert: null });
 
-  // If lastAlert has no id, we want to SEE that immediately
-  if (lastAlert.id === lastId) return res.json({ ...stamp, data: null });
+  if (lastAlert.id === lastId) return res.json({ ...stamp, lastAlert: null });
 
-  return res.json({ ...stamp, data: lastAlert });
+  return res.json({ ...stamp, lastAlert });
 });
+
 
 
 // Helius webhook
@@ -217,6 +216,7 @@ app.post("/helius", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
+
 
 
 
