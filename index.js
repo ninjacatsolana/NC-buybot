@@ -111,106 +111,231 @@ app.get("/test-tweet", async (req, res) => {
 /**
  * HELIUS WEBHOOK
  *
- * BUY definition:
- * - wallet net gained NC (tokenTransfers for NC mint)
- * - that same wallet net spent SOL (nativeBalanceChanges negative lamports)
+ * BUY:
+ * - transaction fee payer gained NC
+ * - transaction fee payer sent SOL
  *
- * Then tweet + trigger overlay.
+ * SELL:
+ * - transaction fee payer lost NC
+ *
+ * Transfers, liquidity actions, failed transactions, and sells are ignored.
  */
 app.post("/helius", async (req, res) => {
   try {
     const events = Array.isArray(req.body) ? req.body : [req.body];
+
     console.log("Helius webhook hit:", events.length);
 
     for (const e of events) {
       const sig = e?.signature;
-      if (!sig) continue;
-      if (hasSeen(sig)) continue;
-      markSeen(sig);
 
-      // Skip obvious sales if Helius tags them
-      if (e?.type === "NFT_SALE") continue;
-
-      const transfers = Array.isArray(e?.tokenTransfers) ? e.tokenTransfers : [];
-      const ncTransfers = transfers.filter((t) => t?.mint === NC_MINT);
-      if (!ncTransfers.length) continue;
-
-      // Net NC by wallet
-      const deltaByWallet = new Map();
-      for (const t of ncTransfers) {
-        const amt = Number(t.tokenAmount || 0);
-        if (!amt) continue;
-
-        const from = t.fromUserAccount || t.fromWallet || null;
-        const to = t.toUserAccount || t.toWallet || null;
-
-        if (from) deltaByWallet.set(from, (deltaByWallet.get(from) || 0) - amt);
-        if (to) deltaByWallet.set(to, (deltaByWallet.get(to) || 0) + amt);
-      }
-
-      // Net SOL (lamports) by wallet
-      const solDeltaByWallet = new Map();
-      const native = Array.isArray(e?.nativeBalanceChanges)
-        ? e.nativeBalanceChanges
-        : [];
-
-      for (const c of native) {
-        const w = c.account;
-        const lamports = Number(c.amount || 0);
-        if (!w || !lamports) continue;
-        solDeltaByWallet.set(w, (solDeltaByWallet.get(w) || 0) + lamports);
-      }
-
-      // Choose best BUY candidate: gained NC + spent SOL
-      let trader = null;
-      let ncDelta = 0;
-
-      for (const [wallet, delta] of deltaByWallet.entries()) {
-        if (!wallet) continue;
-        const solDelta = solDeltaByWallet.get(wallet) || 0;
-
-        if (delta > 0 && solDelta < 0) {
-          if (delta > ncDelta) {
-            ncDelta = delta;
-            trader = wallet;
-          }
-        }
-      }
-
-      if (!trader || ncDelta <= 0) {
-        console.log("Skipping non-buy:", sig, { trader, ncDelta });
+      if (!sig) {
+        console.log("Skipping event without signature");
         continue;
       }
 
-      const traderSolDelta = solDeltaByWallet.get(trader) || 0;
-      console.log("BUY CONFIRMED:", { sig, trader, ncDelta, traderSolDelta });
+      if (hasSeen(sig)) {
+        console.log("Skipping duplicate:", sig);
+        continue;
+      }
+
+      // Ignore failed transactions
+      if (e?.transactionError) {
+        console.log("Skipping failed transaction:", sig, e.transactionError);
+        markSeen(sig);
+        continue;
+      }
+
+      const trader = e?.feePayer;
+
+      if (!trader) {
+        console.log("Skipping transaction without fee payer:", sig);
+        markSeen(sig);
+        continue;
+      }
+
+      const transfers = Array.isArray(e?.tokenTransfers)
+        ? e.tokenTransfers
+        : [];
+
+      const ncTransfers = transfers.filter(
+        (transfer) => transfer?.mint === NC_MINT
+      );
+
+      if (!ncTransfers.length) {
+        console.log("Skipping transaction without NC transfer:", sig);
+        markSeen(sig);
+        continue;
+      }
+
+      /**
+       * Calculate the fee payer's net NC change.
+       *
+       * Positive = received NC
+       * Negative = sent NC
+       */
+      let ncDelta = 0;
+
+      for (const transfer of ncTransfers) {
+        const amount = Number(transfer?.tokenAmount || 0);
+
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+
+        const from =
+          transfer?.fromUserAccount ||
+          transfer?.fromWallet ||
+          null;
+
+        const to =
+          transfer?.toUserAccount ||
+          transfer?.toWallet ||
+          null;
+
+        if (from === trader) ncDelta -= amount;
+        if (to === trader) ncDelta += amount;
+      }
+
+      /**
+       * Calculate how much SOL the fee payer actually sent.
+       *
+       * We use nativeTransfers instead of raw balance changes because
+       * raw balance changes include transaction fees and account rent.
+       */
+      const nativeTransfers = Array.isArray(e?.nativeTransfers)
+        ? e.nativeTransfers
+        : [];
+
+      let solSentLamports = 0;
+      let solReceivedLamports = 0;
+
+      for (const transfer of nativeTransfers) {
+        const amount = Number(transfer?.amount || 0);
+
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+
+        if (transfer?.fromUserAccount === trader) {
+          solSentLamports += amount;
+        }
+
+        if (transfer?.toUserAccount === trader) {
+          solReceivedLamports += amount;
+        }
+      }
+
+      const solSent = solSentLamports / 1_000_000_000;
+      const solReceived = solReceivedLamports / 1_000_000_000;
+
+      console.log("TRANSACTION CLASSIFICATION:", {
+        sig,
+        type: e?.type,
+        source: e?.source,
+        trader,
+        ncDelta,
+        solSent,
+        solReceived,
+      });
+
+      /**
+       * SELL
+       *
+       * The trader lost NC. Mark it processed and do nothing.
+       */
+      if (ncDelta < 0) {
+        console.log("SELL DETECTED - no alert:", {
+          sig,
+          trader,
+          ncSold: Math.abs(ncDelta),
+          solReceived,
+        });
+
+        markSeen(sig);
+        continue;
+      }
+
+      /**
+       * TRANSFER / LIQUIDITY / OTHER
+       *
+       * Receiving NC without sending meaningful SOL should not count
+       * as a buy.
+       *
+       * 0.00001 SOL keeps tiny fees or unusual movements from firing.
+       */
+      const MIN_SOL_BUY = 0.00001;
+
+      if (ncDelta <= 0 || solSent < MIN_SOL_BUY) {
+        console.log("Skipping non-buy transaction:", {
+          sig,
+          trader,
+          ncDelta,
+          solSent,
+          solReceived,
+        });
+
+        markSeen(sig);
+        continue;
+      }
+
+      console.log("BUY CONFIRMED:", {
+        sig,
+        trader,
+        ncBought: ncDelta,
+        solSpent: solSent,
+      });
 
       const txLink = `https://solscan.io/tx/${sig}`;
+
       const tweet =
         `🐾 NC BUY\n` +
-        `Amount: ${ncDelta.toLocaleString()} NC\n` +
+        `Bought: ${ncDelta.toLocaleString("en-US", {
+          maximumFractionDigits: 2,
+        })} NC\n` +
+        `Spent: ${solSent.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 4,
+        })} SOL\n` +
         `Wallet: ${shortAddr(trader)}\n` +
         `TX: ${txLink}`;
 
+      /**
+       * Only mark the transaction completed after the tweet succeeds.
+       * Your old version marked it before tweeting, meaning a failed
+       * tweet could never be retried.
+       */
       await tweetWithImage(tweet);
+      markSeen(sig);
 
-      // Trigger overlay locally
-      lastAlert = { msg: "Ninja Cat Buy!", ts: Date.now() };
+      // Trigger local overlay
+      lastAlert = {
+        msg: `${ncDelta.toLocaleString("en-US", {
+          maximumFractionDigits: 0,
+        })} NC Buy!`,
+        ts: Date.now(),
+      };
 
-      // Optional: also ping your public app endpoint (ignore failures)
+      // Optionally trigger hosted overlay
       if (PUBLIC_FIRE_ALERT_URL) {
         try {
-          https.get(PUBLIC_FIRE_ALERT_URL).on("error", () => {});
-        } catch (_) {}
+          https
+            .get(PUBLIC_FIRE_ALERT_URL)
+            .on("error", (error) => {
+              console.log("Public alert trigger failed:", error.message);
+            });
+        } catch (error) {
+          console.log("Public alert trigger error:", error.message);
+        }
       }
     }
 
     res.status(200).send("ok");
   } catch (err) {
-    console.log("Webhook error:", err?.message, err?.data || err);
+    console.log(
+      "Webhook error:",
+      err?.message,
+      err?.data || err
+    );
+
     res.status(500).send("error");
   }
 });
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
