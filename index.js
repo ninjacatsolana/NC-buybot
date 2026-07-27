@@ -337,5 +337,29 @@ app.post("/helius", async (req, res) => {
     res.status(500).send("error");
   }
 });
+
+curl -X POST https://nc-buybot-production-2946.up.railway.app/helius \
+-H "Content-Type: application/json" \
+-d '[
+  {
+    "signature": "TEST-BUY-001",
+    "feePayer": "TestBuyerWallet",
+    "tokenTransfers": [
+      {
+        "mint": "7wH5YKNnhcjyqUUXZwsdQWK26JVj9ejfNwDFfR1VCyod",
+        "fromUserAccount": "PoolWallet",
+        "toUserAccount": "TestBuyerWallet",
+        "tokenAmount": 250000
+      }
+    ],
+    "nativeTransfers": [
+      {
+        "fromUserAccount": "TestBuyerWallet",
+        "toUserAccount": "PoolWallet",
+        "amount": 450000000
+      }
+    ]
+  }
+]'
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("listening on", PORT));
